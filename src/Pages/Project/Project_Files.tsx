@@ -3,8 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import {
-  Film, FileVideo, Search,
-  ChevronDown, ChevronLeft, ChevronRight,
+  Film, FileVideo, Search, ChevronLeft, ChevronRight,
   Check, Eye, AlertCircle,
 } from 'lucide-react';
 import Navbar_Project from "../../components/Navbar_Project";

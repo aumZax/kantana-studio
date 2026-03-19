@@ -392,7 +392,8 @@ export default function Others_Asset() {
                     body: JSON.stringify({
                         entity_type: 'asset',
                         entity_id: AssetID,
-                        project_id: projectId
+                        project_id: projectId,
+                        noteId: currentNoteId
                     })
                 }
                 );

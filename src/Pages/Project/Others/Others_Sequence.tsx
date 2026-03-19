@@ -299,7 +299,9 @@ export default function Others_Sequence() {
                     body: JSON.stringify({
                         entity_type: 'sequence',
                         entity_id: sequenceId,
-                        project_id: projectId
+                        project_id: projectId,
+                        noteId: currentNoteId
+
                     })
                 });
                 const data = await res.json();
