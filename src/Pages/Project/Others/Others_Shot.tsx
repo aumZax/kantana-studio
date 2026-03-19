@@ -234,6 +234,8 @@ export default function Others_Shot() {
     const [taskSearchQuery, setTaskSearchQuery] = useState('');
     const [taskSearchOpen, setTaskSearchOpen] = useState(false);
     const [loadingTasks, setLoadingTasks] = useState(false);
+    const [typeOpen, setTypeOpen] = useState(false); 
+    const [currentNoteId, setCurrentNoteId] = useState(null);
 
 
     //============================================================================================================================================//
@@ -743,7 +745,9 @@ export default function Others_Shot() {
                 body: JSON.stringify({
                     projectId: localStorage.getItem("projectId"),
                     noteType: 'shot',
-                    typeId: shotData.id
+                    typeId: shotData.id,
+                    noteId: currentNoteId
+                    
                 })
             });
 
@@ -891,6 +895,7 @@ export default function Others_Shot() {
             setUploading(true);
 
             let uploadedFileUrls: string[] = [];
+            let uploadedFileIds: number[] = [];
 
             if (files.length > 0) {
                 const formData = new FormData();
@@ -906,25 +911,28 @@ export default function Others_Shot() {
                 if (!uploadResponse.ok) throw new Error('File upload failed');
 
                 const uploadData = await uploadResponse.json();
+                uploadedFileIds = uploadData.files?.map((f: any) => f.id) ?? [];
                 uploadedFileUrls = uploadData.files?.map((f: any) => f.fileUrl).filter(Boolean) ?? [];
             }
 
             const noteData = {
-                projectId: projectId ?? null,
-                noteType: 'shot',
-                typeId: shotData?.id ?? null,
-                subject: subject || '',
-                body: body || '',
-                fileUrl: uploadedFileUrls.length > 1
-                    ? JSON.stringify(uploadedFileUrls)
-                    : (uploadedFileUrls[0] ?? null),
-                author: currentUser,
-                status: 'opn',
-                visibility: type ?? null,
-                tasks: selectedTasks.length > 0 ? selectedTasks : null,
+                projectId:      projectId ?? null,
+                noteType:       'shot',
+                typeId:         shotData?.id ?? null,
+                subject:        subject || '',
+                body:           body || '',
+                fileUrl:        uploadedFileUrls.length > 1
+                                    ? JSON.stringify(uploadedFileUrls)
+                                    : (uploadedFileUrls[0] ?? null),
+                fileIds:         uploadedFileIds,
+                                           
+                author:         currentUser,
+                status:         'opn',
+                visibility:     type ?? null,
+                tasks:          selectedTasks.length > 0 ? selectedTasks : null,
                 assignedPeople: selectedPeople?.length > 0
-                    ? selectedPeople.map((person: Person) => person.id)
-                    : null,
+                                    ? selectedPeople.map((person: Person) => person.id)
+                                    : null,
             };
 
             const createResponse = await fetch(ENDPOINTS.CREATE_SHOT_NOTE, {
@@ -935,6 +943,7 @@ export default function Others_Shot() {
 
             if (!createResponse.ok) {
                 const errorData = await createResponse.json();
+                setCurrentNoteId(errorData.noteId);
                 throw new Error('Failed to create note: ' + JSON.stringify(errorData));
             }
 
@@ -2281,28 +2290,44 @@ export default function Others_Shot() {
                                     />
                                 </div>
 
-                                <div className="space-y-1.5">
-                                    <label className="block text-xs font-medium text-gray-300">
-                                        Type <span className="text-red-400">*</span>
-                                    </label>
+<div className="space-y-1.5 relative">
+    <label className="block text-xs font-medium text-gray-300">
+        Type <span className="text-red-400">*</span>
+    </label>
 
-                                    <select
-                                        value={type ?? ''}
-                                        onChange={(e) => setType(e.target.value as NoteType)}
-                                        className={`w-full h-8 px-3 bg-white/4 border rounded-lg text-sm transition-all
-                                        ${type === null
-                                                ? 'border-blue-500/30 text-gray-400'
-                                                : 'border-blue-500/30 text-blue-50'}
-                                            focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400
-                                        `}
-                                    >
-                                        <option value="" disabled hidden>
-                                            — Please select —
-                                        </option>
-                                        <option value="Client">Client</option>
-                                        <option value="Internal">Internal</option>
-                                    </select>
-                                </div>
+    <div
+        onClick={() => setTypeOpen((prev) => !prev)}
+        onBlur={() => setTimeout(() => setTypeOpen(false), 200)}
+        tabIndex={0}
+        className={`w-full h-8 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-sm cursor-pointer
+            flex items-center justify-between
+            focus:outline-none focus:ring-2 focus:ring-blue-500/60
+            ${type === null ? 'text-blue-400/40' : 'text-blue-50'}
+        `}
+    >
+        <span>{type ?? '— Please select —'}</span>
+        <span className="text-blue-400/60 text-xs">{typeOpen ? '▲' : '▼'}</span>
+    </div>
+
+    {typeOpen && (
+        <div className="absolute z-10 mt-1 w-full bg-[#0a1018] border border-blue-500/30 rounded-lg shadow-lg overflow-hidden">
+            {(['Client', 'Internal'] as NoteType[]).map((option) => (
+                <div
+                    key={option}
+                    onClick={() => {
+                        setType(option);
+                        setTypeOpen(false);
+                    }}
+                    className={`px-3 py-1.5 text-sm cursor-pointer hover:bg-blue-500/20
+                        ${type === option ? 'text-blue-300 bg-blue-500/10' : 'text-gray-200'}
+                    `}
+                >
+                    {option}
+                </div>
+            ))}
+        </div>
+    )}
+</div>
 
                                 <div className="space-y-1.5">
                                     <label className="block text-xs font-medium text-gray-300">

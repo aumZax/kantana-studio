@@ -547,12 +547,11 @@ function MainLayout() {
             />
             {isOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-2xl border border-gray-700/50 py-2 z-50 backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
-                <a href="profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600/20 transition-colors duration-200 hover:pl-5">{authUser.email}</a>
-                <a href="#settings" className="block px-4 py-2 text-sm text-gray-300 hover:bg-blue-600/20 transition-colors duration-200 hover:pl-5">Settings</a>
+                <div className="block px-4 py-2 text-sm text-gray-300 transition-colors duration-200 ">{authUser.email}</div>
                 <hr className="my-2 border-gray-700/50" />
-                <button onClick={handleLogout} className="block dropDownLogOut px-4 py-2 text-sm text-red-400 hover:bg-red-600/20 w-full text-left transition-all duration-200 hover:pl-5 font-medium">
+                <div onClick={handleLogout} className="cursor-pointer block dropDownLogOut px-4 py-2 text-sm text-red-400 hover:bg-red-600/20 w-full text-left transition-all duration-200 hover:pl-5 font-medium">
                   Logout
-                </button>
+                </div>
               </div>
             )}
           </div>

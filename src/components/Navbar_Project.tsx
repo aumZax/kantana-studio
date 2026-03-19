@@ -126,7 +126,6 @@ export default function Navbar_Project({ activeTab = 'ProDetail' }: NavbarProjec
         { id: 'people', label: 'People', icon: '👤', route: '/Others_People' },
 
         { id: 'files', label: 'Files', icon: '📎', route: '/Project_Files' },
-        { id: 'notes', label: 'Notes', icon: '📝', route: '/Project_Notes' },
     ];
 
     const handleTabClick = (tabId: string) => {

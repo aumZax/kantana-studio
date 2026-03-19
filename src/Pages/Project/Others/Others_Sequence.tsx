@@ -160,6 +160,7 @@ export default function Others_Sequence() {
     const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
     const [modalTasks, setModalTasks] = useState<{ id: number; task_name: string; pipeline_step_name: string | null }[]>([]);
     const [loadingModalTasks, setLoadingModalTasks] = useState(false);
+    const [currentNoteId, setCurrentNoteId] = useState(null);
 
 
 
@@ -172,6 +173,9 @@ export default function Others_Sequence() {
     const [showCreateAsset, setShowCreateAsset] = useState(false);
     const [isCreatingAsset, setIsCreatingAsset] = useState(false);
     const [createAssetForm, setCreateAssetForm] = useState({ asset_name: '', asset_type: 'Character', description: '' });
+
+    const [typeOpen, setTypeOpen] = useState(false); // เพิ่มบรรทัดนี้
+
     //============================================================================================================================================//
 
     const [SequenceData, setSequenceData] = useState({
@@ -523,6 +527,7 @@ export default function Others_Sequence() {
             setUploading(true);
 
             let uploadedFileUrls: string[] = [];
+            let uploadedFileIds: number[] = [];
 
             console.log('📁 Files array:', files);
 
@@ -549,6 +554,7 @@ export default function Others_Sequence() {
 
                 const uploadData = await uploadResponse.json();
                 console.log('✅ Upload successful:', uploadData);
+                uploadedFileIds = uploadData.files?.map((f: any) => f.id) ?? [];
 
                 // 🔥 backend จะส่งกลับ files array
                 uploadedFileUrls = uploadData.files.map((f: any) => f.fileUrl);
@@ -569,6 +575,7 @@ export default function Others_Sequence() {
 
                 // ✅ option 2 (ถ้ายังใช้ schema เดิม): เอาแค่ไฟล์แรก
                 fileUrl: uploadedFileUrls[0] ?? null,
+                fileIds: uploadedFileIds,
 
                 author: currentUser,
                 status: 'opn',
@@ -592,6 +599,7 @@ export default function Others_Sequence() {
             }
 
             const result = await createResponse.json();
+            setCurrentNoteId(result.noteId);
             console.log('✅ Note created successfully:', result);
 
             // Reset
@@ -1393,7 +1401,7 @@ export default function Others_Sequence() {
                                     placeholder="Enter task name"
                                     value={createTaskForm.task_name}
                                     onChange={(e) => handleFormChange('task_name', e.target.value)}
-                                    className="h-9 px-3 bg-[#0a1018] border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500"
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500"
                                 />
                             </div>
 
@@ -1406,7 +1414,7 @@ export default function Others_Sequence() {
                                     type="text"
                                     value={`Sequence: ${SequenceData.sequence}`}
                                     readOnly
-                                    className="h-9 px-3 bg-[#0a1018] border border-blue-500/30 rounded text-gray-400 text-sm cursor-not-allowed"
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded text-gray-400 text-sm cursor-not-allowed"
                                 />
                             </div>
 
@@ -1419,7 +1427,7 @@ export default function Others_Sequence() {
                                     type="date"
                                     value={createTaskForm.start_date}
                                     onChange={(e) => handleFormChange('start_date', e.target.value)}
-                                    className="h-9 px-3 bg-[#0a1018] border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 [color-scheme:dark]"
                                 />
                             </div>
 
@@ -1432,7 +1440,7 @@ export default function Others_Sequence() {
                                     type="date"
                                     value={createTaskForm.due_date}
                                     onChange={(e) => handleFormChange('due_date', e.target.value)}
-                                    className="h-9 px-3 bg-[#0a1018] border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 [color-scheme:dark]"
                                 />
                             </div>
 
@@ -1446,7 +1454,7 @@ export default function Others_Sequence() {
                                     value={createTaskForm.description}
                                     onChange={(e) => handleFormChange('description', e.target.value)}
                                     rows={3}
-                                    className="px-3 py-2 bg-[#0a1018] border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 resize-none"
+                                    className="px-3 py-2 bg-white/4 border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 resize-none"
                                 />
                             </div>
 
@@ -1458,7 +1466,7 @@ export default function Others_Sequence() {
                             <button
                                 onClick={() => setShowCreateSequence_Task(false)}
                                 disabled={isCreatingTask}
-                                className="px-4 h-9 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-700 hover:to-gray-700 text-white text-sm rounded flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 h-9 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-700 hover:to-gray-700 text-white text-sm rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Cancel
                             </button>
@@ -1716,26 +1724,43 @@ export default function Others_Sequence() {
                                 </div>
 
                                 {/* Type */}
-                                <div className="space-y-1.5">
+                                <div className="space-y-1.5 relative">
                                     <label className="block text-xs font-medium text-gray-300">
                                         Type <span className="text-red-400">*</span>
                                     </label>
-                                    <select
-                                        value={type ?? ''}
-                                        onChange={(e) => setType(e.target.value as NoteType)}
-                                        className={`w-full h-8 px-3 bg-white/4 border rounded-lg text-sm transition-all
-                                ${type === null
-                                                ? 'border-blue-500/30 text-gray-400'
-                                                : 'border-blue-500/30 text-blue-50'}
-                                focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400
-                            `}
+
+                                    <div
+                                        onClick={() => setTypeOpen((prev) => !prev)}
+                                        onBlur={() => setTimeout(() => setTypeOpen(false), 200)}
+                                        tabIndex={0}
+                                        className={`w-full h-8 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-sm cursor-pointer
+                                            flex items-center justify-between
+                                            focus:outline-none focus:ring-2 focus:ring-blue-500/60
+                                            ${type === null ? 'text-blue-400/40' : 'text-blue-50'}
+                                        `}
                                     >
-                                        <option value="" disabled hidden>
-                                            — Please select —
-                                        </option>
-                                        <option value="Client">Client</option>
-                                        <option value="Internal">Internal</option>
-                                    </select>
+                                        <span>{type ?? '— Please select —'}</span>
+                                        <span className="text-blue-400/60 text-xs">{typeOpen ? '▲' : '▼'}</span>
+                                    </div>
+
+                                    {typeOpen && (
+                                        <div className="absolute z-10 mt-1 w-full bg-[#0a1018] border border-blue-500/30 rounded-lg shadow-lg overflow-hidden">
+                                            {(['Client', 'Internal'] as NoteType[]).map((option) => (
+                                                <div
+                                                    key={option}
+                                                    onClick={() => {
+                                                        setType(option);
+                                                        setTypeOpen(false);
+                                                    }}
+                                                    className={`px-3 py-1.5 text-sm cursor-pointer hover:bg-blue-500/20
+                        ${type === option ? 'text-blue-300 bg-blue-500/10' : 'text-gray-200'}
+                    `}
+                                                >
+                                                    {option}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Message */}
@@ -2022,7 +2047,7 @@ export default function Others_Sequence() {
                                     value={createAssetForm.asset_name}
                                     onChange={(e) => setCreateAssetForm(p => ({ ...p, asset_name: e.target.value }))}
                                     autoFocus
-                                    className="h-9 px-3 bg-[#0a1018] border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-600"
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-600"
                                 />
                             </div>
 
@@ -2031,7 +2056,7 @@ export default function Others_Sequence() {
                                 <select
                                     value={createAssetForm.asset_type}
                                     onChange={(e) => setCreateAssetForm(p => ({ ...p, asset_type: e.target.value }))}
-                                    className="h-9 px-3 bg-[#0a1018] border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500"
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500"
                                 >
                                     <option value="Character">Character</option>
                                     <option value="Environment">Environment</option>
@@ -2062,7 +2087,7 @@ export default function Others_Sequence() {
 
                             <div className="grid grid-cols-[130px_1fr] gap-4 items-center">
                                 <label className="text-sm text-gray-300 text-right">Project</label>
-                                <div className="h-9 px-3 bg-[#0a1018]/60 border border-blue-500/10 rounded-lg text-gray-500 text-sm flex items-center select-none">
+                                <div className="h-9 px-3 bg-white/4 border border-blue-500/10 rounded-lg text-gray-500 text-sm flex items-center select-none">
                                     {projectData?.projectName || 'Unknown Project'}
                                 </div>
                             </div>
@@ -2074,7 +2099,7 @@ export default function Others_Sequence() {
                                     value={createAssetForm.description}
                                     onChange={(e) => setCreateAssetForm(p => ({ ...p, description: e.target.value }))}
                                     rows={3}
-                                    className="px-3 py-2 bg-[#0a1018] border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-600 resize-none"
+                                    className="px-3 py-2 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-600 resize-none"
                                 />
                             </div>
                         </div>
