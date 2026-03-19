@@ -1,0 +1,2965 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useEffect, useState } from 'react';
+import Navbar_Project from "../../../components/Navbar_Project";
+import { Check, Eye, Image, Plus, Upload, X, LoaderCircle, ChevronDown } from 'lucide-react';
+import ENDPOINTS from '../../../config';
+import axios from 'axios';
+import TaskTab from "../../../components/TaskTab";
+import NoteTab from '../../../components/NoteTab';
+import Asset_ShotTab from '../../../components/Asset_ShotTab';
+import RightPanel from "../../../components/RightPanel";
+import { useNavigate } from 'react-router-dom';
+import VersionTab from '../../../components/VersionTab';
+import RightPanelNote from "../../../components/RightPanelNote";
+
+
+//============================================================================================================================================//
+
+const statusConfig = {
+    wtg: { label: 'wtg', fullLabel: 'Waiting to Start', color: 'bg-gray-600', icon: '-' },
+    ip: { label: 'ip', fullLabel: 'In Progress', color: 'bg-blue-500', icon: 'dot' },
+    fin: { label: 'fin', fullLabel: 'Final', color: 'bg-green-500', icon: 'dot' },
+    wtc: { label: 'wtc', fullLabel: 'Waiting for Client', color: 'bg-yellow-500', icon: 'dot' },
+    arp: { label: 'arp', fullLabel: 'Approval', color: 'bg-green-600', icon: 'dot' },
+    cmpt: { label: 'cmpt', fullLabel: 'Complete', color: 'bg-blue-600', icon: 'dot' },
+    cfrm: { label: 'cfrm', fullLabel: 'Confirmed', color: 'bg-purple-500', icon: 'dot' },
+    rts: { label: 'rts', fullLabel: 'Ready to Start', color: 'bg-orange-500', icon: 'dot' },
+    omt: { label: 'omt', fullLabel: 'Omit', color: 'bg-gray-500', icon: 'dot' },
+    dlvr: { label: 'dlvr', fullLabel: 'Delivered', color: 'bg-cyan-500', icon: 'dot' },
+    hld: { label: 'hld', fullLabel: 'On Hold', color: 'bg-orange-600', icon: 'dot' },
+    nef: { label: 'nef', fullLabel: 'Need fixed', color: 'bg-red-500', icon: 'dot' },
+    cap: { label: 'cap', fullLabel: 'Client Approved', color: 'bg-green-400', icon: 'dot' },
+    na: { label: 'na', fullLabel: 'N/A', color: 'bg-gray-400', icon: '-' },
+    vnd: { label: 'vnd', fullLabel: 'Vendor', color: 'bg-purple-800', icon: 'dot' },
+};
+
+type StatusType = keyof typeof statusConfig;
+type NoteType = 'Client' | 'Internal';
+
+
+interface Note {
+    id: number;
+    project_id: number;
+    note_type: string;
+    type_id: number;
+    subject: string;
+    body: string;
+    file_url?: string;
+    author: string;
+    status: string;
+    visibility: string;
+    created_at: string;
+    tasks?: string[];
+    assigned_people?: string[];
+}
+
+interface ShotData {
+    id: number;
+    shotCode: string;
+    sequence: string;
+    status: StatusType;
+    tags: string[];
+    thumbnail: string;
+    description: string;
+    dueDate: string;
+
+}
+interface Person {
+    id: number;
+    name: string;
+    email: string;
+    status?: string;
+    permissionGroup?: string;
+    projects?: string;
+    groups?: string;
+    createdAt?: string;
+}
+
+interface Version {
+    id: number;
+    entity_type: string;
+    entity_id: number;
+    version_number: number;
+    version_name?: string;
+    status: string;
+    file_url?: string;
+    description?: string;
+    uploaded_by?: string;
+    uploaded_by_name?: string;
+    created_at: string;
+    task_name?: string;
+}
+
+const shotFieldMap: Record<keyof ShotData, string | null> = {
+    id: null,
+    shotCode: "shot_name",
+    sequence: "sequence_name",
+    status: "status",
+    tags: null,
+    thumbnail: "thumbnail",
+    description: "description",
+    dueDate: "due_date"
+};
+
+type TaskReviewer = {
+    id: number;
+    username: string;
+};
+
+type PipelineStep = {
+    id: number;
+    step_name: string;
+    step_code: string;
+    color_hex: string;
+    entity_type?: 'shot' | 'asset';
+};
+
+type Task = {
+    id: number;
+    project_id: number;
+    entity_type: string;
+    entity_id: number;
+    task_name: string;
+    status: string;
+    start_date: string;
+    due_date: string;
+    created_at: string;
+    description: string;
+    file_url: string;
+    assignees: TaskAssignee[];
+    reviewers: TaskReviewer[];
+    pipeline_step: PipelineStep | null;
+};
+
+type TaskAssignee = {
+    id: number;
+    username: string;
+};
+
+interface Asset {
+    id: number;
+    asset_id: number;
+    asset_name: string;
+    status: string;
+    description: string;
+    created_at: string;
+    asset_shot_id?: number;
+    asset_type?: string;
+    thumbnail?: string;
+}
+
+//============================================================================================================================================//
+
+const getInitialShotData = (): ShotData => ({
+    id: JSON.parse(localStorage.getItem("selectedShot") || "{}").id || 0,
+    shotCode: "Loading...",
+    sequence: "",
+    status: "wtg" as StatusType,
+    tags: [],
+    thumbnail: "",
+    description: "",
+    dueDate: ""
+});
+
+export default function Others_Shot() {
+
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState('Shot Info');
+    const [shotData, setShotData] = useState<ShotData>(getInitialShotData());
+    const [editingField, setEditingField] = useState<string | null>(null);
+    const [showPreview, setShowPreview] = useState(false);
+    const [showStatusMenu, setShowStatusMenu] = useState(false);
+    const [type, setType] = useState<string | null>(null);
+    const [showCreateShot_Task, setShowCreateShot_Task] = useState(false);
+    const [showCreateShot_Versions, setShowCreateShot_Versions] = useState(false);
+    const [showCreateShot_Assets, setShowCreateShot_Assets] = useState(false);
+    const [showCreateShot_Note, setshowCreateShot_Note] = useState(false);
+    const [loadingNotes, setLoadingNotes] = useState(false);
+    const [notes, setNotes] = useState<Note[]>([]);
+    const [open, setOpen] = useState(false);
+    const [openAssignedDropdown, setOpenAssignedDropdown] = useState<string | number | null>(null);
+    const [files, setFiles] = useState<File[]>([]);
+    const [modalTasks, setModalTasks] = useState<{ id: number; task_name: string; pipeline_step_name: string | null }[]>([]);
+    const [loadingModalTasks, setLoadingModalTasks] = useState(false);
+    const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
+
+    const [selectedPeople, setSelectedPeople] = useState<Person[]>([]);
+    const [body, setBody] = useState('');
+    const currentUser = localStorage.getItem('currentUser') || 'Manager';
+    const [noteModalPosition, setNoteModalPosition] = useState({ x: 0, y: 0 });
+    const [allPeople, setAllPeople] = useState<Person[]>([]);
+    const [query, setQuery] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [shotAssets, setShotAssets] = useState<Asset[]>([]);
+    const [loadingAssets, setLoadingAssets] = useState(false);
+    const shotId = JSON.parse(localStorage.getItem("selectedShot") || "{}").id;
+    const projectData = JSON.parse(localStorage.getItem("projectData") || "null");
+    const projectId = projectData?.projectId;
+    const [isMediaLoading, setIsMediaLoading] = useState(true);
+    const [taskVersions, setTaskVersions] = useState<any[]>([]);
+    const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+    const [rightPanelActiveTab, setRightPanelActiveTab] = useState('notes');
+    const [shotVersions, setShotVersions] = useState<any[]>([]);
+    const [isLoadingShotVersions, setIsLoadingShotVersions] = useState(false);
+    const [,] = useState<Version | null>(null);
+    const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+    const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [isResizing, setIsResizing] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [, setSelectedFile] = useState<File | null>(null);
+    const [versionModalPosition, setVersionModalPosition] = useState({ x: 0, y: 0 });
+    const [rightPanelWidth, setRightPanelWidth] = useState(600);
+    const [showCreateVersion, setShowCreateVersion] = useState(false);
+    const [isCreatingVersion, setIsCreatingVersion] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [versionFiles, setVersionFiles] = useState<File[]>([]);
+    const [versionFilePreviews, setVersionFilePreviews] = useState<string[]>([]);
+    const [versionNameFromFile, setVersionNameFromFile] = useState<number | null>(null);
+    const [selectedUploader, setSelectedUploader] = useState<Person | null>(null);
+    const [uploaderQuery, setUploaderQuery] = useState('');
+    const [uploaderOpen, setUploaderOpen] = useState(false);
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const [isCreatingTask, setIsCreatingTask] = useState(false);
+    const [subject, setSubject] = useState(shotData?.shotCode ? `Note on ${shotData.shotCode}` : "");
+    const [createVersionForm, setCreateVersionForm] = useState({ version_name: '', status: 'wtg', description: '', link: '', task: '', task_id: null as number | null, });
+    const [isCreatingAsset, setIsCreatingAsset] = useState(false);
+    const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+    const [isThumbnailLocked, setIsThumbnailLocked] = useState(false);
+    const thumbnailDisabled = isCreatingVersion || isUploadingThumbnail || isThumbnailLocked || isLoadingShotVersions;
+    const [taskSearchQuery, setTaskSearchQuery] = useState('');
+    const [taskSearchOpen, setTaskSearchOpen] = useState(false);
+    const [loadingTasks, setLoadingTasks] = useState(false);
+
+
+    //============================================================================================================================================//
+
+
+
+    const [createTaskForm, setCreateTaskForm] = useState({
+        task_name: '',
+        status: 'wtg',
+        start_date: '',
+        due_date: '',
+        description: '',
+        file_url: '',
+    });
+
+    const [createAssetForm, setCreateAssetForm] = useState({
+        asset_name: '',
+        description: '',
+        asset_type: 'Character',
+    });
+
+    //============================================================================================================================================//
+
+    const [noteContextMenu, setNoteContextMenu] = useState<{
+        visible: boolean;
+        x: number;
+        y: number;
+        note: Note;
+    } | null>(null);
+
+    const [deleteNoteConfirm, setDeleteNoteConfirm] = useState<{
+        noteId: number;
+        subject: string;
+    } | null>(null);
+
+    const [versionContextMenu, setVersionContextMenu] = useState<{
+        visible: boolean;
+        x: number;
+        y: number;
+        versionId: number;
+        versionName: string;
+    } | null>(null);
+
+    const [deleteVersionConfirm, setDeleteVersionConfirm] = useState<{
+        versionId: number;
+        versionName: string;
+    } | null>(null);
+
+    const [isDeletingNote, setIsDeletingNote] = useState(false);
+    const [isDeletingVersion, setIsDeletingVersion] = useState(false);
+
+    //============================================================================================================================================//
+
+    useEffect(() => {
+        if (activeTab === 'Assets') {
+            fetchShotAssets();
+        }
+    }, [activeTab, shotData?.id]);
+
+    useEffect(() => {
+        if (!showCreateShot_Note || !shotId || !projectId) return;
+
+        const fetchModalTasks = async () => {
+            setLoadingModalTasks(true);
+            try {
+                const res = await fetch(ENDPOINTS.GET_NOTE_TASKS, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        entity_type: 'shot',
+                        entity_id: shotId,
+                        project_id: projectId
+                    })
+                });
+                const data = await res.json();
+                setModalTasks(Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.error('[fetchModalTasks]', err);
+                setModalTasks([]);
+            } finally {
+                setLoadingModalTasks(false);
+            }
+        };
+
+        fetchModalTasks();
+    }, [showCreateShot_Note, shotId, projectId]);
+
+    useEffect(() => {
+        const fetchPeople = async () => {
+            try {
+                const response = await fetch(ENDPOINTS.GETALLPEOPLE);
+                const data = await response.json();
+                setAllPeople(data);
+            } catch (error) {
+                console.error('Error fetching people:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPeople();
+    }, []);
+
+    useEffect(() => {
+        if (deleteVersionConfirm) {
+            setVersionContextMenu(null);
+        }
+    }, [deleteVersionConfirm]);
+
+    useEffect(() => {
+        const closeMenu = () => setVersionContextMenu(null);
+        if (versionContextMenu) {
+            document.addEventListener("click", closeMenu);
+            return () => document.removeEventListener("click", closeMenu);
+        }
+    }, [versionContextMenu]);
+
+    useEffect(() => {
+        if (activeTab === 'Versions' && shotId) {
+            fetchShotVersions();
+        }
+    }, [activeTab, shotId]);
+
+    useEffect(() => {
+        if (deleteNoteConfirm) {
+            setNoteContextMenu(null);
+        }
+    }, [deleteNoteConfirm]);
+
+    useEffect(() => {
+        const closeMenu = () => setNoteContextMenu(null);
+
+        if (noteContextMenu) {
+            document.addEventListener("click", closeMenu);
+            return () => document.removeEventListener("click", closeMenu);
+        }
+    }, [noteContextMenu]);
+
+    useEffect(() => {
+
+        if (!shotId || !projectId) {
+            console.warn("⚠️ Missing shotId or projectId");
+            return;
+        }
+
+        setLoadingTasks(true); // ⭐ เพิ่ม
+
+        axios.post<Task[]>(ENDPOINTS.SHOT_TASK, {
+            project_id: projectId,
+            entity_type: "shot",
+            entity_id: shotId
+        })
+            .then(res => {
+                console.log("✅ Tasks received:", res.data);
+                setTasks(res.data);
+            })
+            .catch(err => {
+                console.error("❌ โหลด task ไม่สำเร็จ", err);
+            }).finally(() => {
+                setLoadingTasks(false); // ⭐ เพิ่ม
+            });
+    }, [shotId, projectId]);
+
+    useEffect(() => {
+        if (selectedTask) {
+            setIsPanelOpen(false);
+            const t = setTimeout(() => {
+                setIsPanelOpen(true);
+                fetchTaskVersions(selectedTask.id);
+            }, 10);
+            return () => clearTimeout(t);
+        }
+    }, [selectedTask]);
+
+    useEffect(() => {
+        if (!shotId) return;
+
+        const fetchAll = async () => {
+            await fetchShotDetail();
+
+            await fetchShotVersions();
+        };
+
+        fetchAll();
+    }, [shotId]);
+
+    useEffect(() => {
+        if (activeTab === 'Notes') {
+            fetchNotes();
+        }
+    }, [activeTab, shotData?.id]);
+
+    //============================================================================================================================================//
+
+    const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        setIsResizing(true);
+        e.preventDefault();
+    };
+
+    const addPerson = (person: Person) => {
+        setSelectedPeople([...selectedPeople, person]);
+        setQuery('');
+        setOpen(false);
+    };
+
+    const removetaskFile = (index: number) => {
+        setFiles(files.filter((_, i) => i !== index));
+    };
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (isResizing) {
+            const newWidth = window.innerWidth - e.clientX;
+            if (newWidth >= 400 && newWidth <= 1000) {
+                setRightPanelWidth(newWidth);
+            }
+        }
+    };
+
+    const removePerson = (personId: number) => {
+        setSelectedPeople(selectedPeople.filter((person: Person) => person.id !== personId));
+    };
+
+    const formatDate = (dateStr: string) => {
+        if (!dateStr) return "-";
+
+        return new Date(dateStr).toLocaleString("th-TH", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+    };
+
+    const handleVersionFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setVersionFiles(prev => [...prev, ...files]);
+        setVersionFilePreviews(prev => [
+            ...prev,
+            ...files.map(f => f.type.startsWith('image/') ? URL.createObjectURL(f) : '')
+        ]);
+        // ตั้งชื่อตามไฟล์แรกที่เลือก (ถ้ายังไม่มี)
+        setCreateVersionForm(p => ({
+            ...p,
+            version_name: p.version_name || files[0].name.replace(/\.[^/.]+$/, '')
+        }));
+    };
+
+    const removeVersionFile = (index: number) => {
+        const newFiles = versionFiles.filter((_, i) => i !== index);
+        const newPreviews = versionFilePreviews.filter((_, i) => i !== index);
+
+        setVersionFiles(newFiles);
+        setVersionFilePreviews(newPreviews);
+
+        // ถ้าลบไฟล์ที่เป็นต้นทางของ version_name → reset name ด้วย
+        if (versionNameFromFile === index) {
+            setCreateVersionForm(p => ({ ...p, version_name: '' }));
+            setVersionNameFromFile(null);
+        } else if (versionNameFromFile !== null && index < versionNameFromFile) {
+            setVersionNameFromFile(prev => prev !== null ? prev - 1 : null);
+        }
+    };
+
+    const fetchShotDetail = async () => {
+        if (!shotId) return;
+        try {
+            const res = await axios.post(ENDPOINTS.PROJECT_SHOT_DETAIL, {
+                shotId: Number(shotId)
+            });
+            const rawData = res.data;
+            if (!rawData.length) return;
+
+            const row = rawData[0];
+            setShotData({
+                id: row.shot_id,
+                shotCode: row.shot_name,
+                sequence: row.sequence_name || "No Sequence",  // ← เปลี่ยนจาก row.sequence?.sequence_name
+                status: (row.shot_status || "wtg") as StatusType,
+                tags: [],
+                thumbnail: row.shot_thumbnail || "",
+                description: row.shot_description || "",
+                dueDate: row.shot_created_at?.split("T")[0] || ""
+            });
+        } catch (err) {
+            console.error("fetchShotDetail error:", err);
+        }
+    };
+
+    const fetchShotVersions = async () => {
+        if (!shotId) return;
+        setIsLoadingShotVersions(true);
+        try {
+            const res = await axios.post(`${ENDPOINTS.GET_SHOT_VERSION}`, {
+                entityType: 'shot',
+                entityId: shotId
+            });
+            const data = res.data;
+
+            if (Array.isArray(data) && data.length > 0) {
+                setShotVersions(data);
+                setIsThumbnailLocked(true);
+
+                // ✅ sync thumbnail จาก version ล่าสุด
+                const latestThumb = data[0]?.file_url;
+                if (latestThumb) {
+                    setShotData(prev => ({ ...prev, thumbnail: latestThumb }));
+                }
+            } else {
+                setShotVersions([]);
+                setIsThumbnailLocked(false);
+                // ❌ ลบ block เช็ค localStorage และ clear thumbnail ออกทั้งหมด
+                // ให้ fetchShotDetail จัดการ thumbnail เองเมื่อไม่มี version
+            }
+        } finally {
+            setIsLoadingShotVersions(false);
+        }
+    };
+
+    const removeVersionFromState = (versionId: number) => {
+        setShotVersions(prev => {
+            const updated = prev.filter(v => v.id !== versionId);
+            setIsThumbnailLocked(updated.length >= 1);
+            return updated;
+        });
+    };
+
+    const handleCreateVersion = async () => {
+        if (isCreatingVersion) return;
+        if (!createVersionForm.version_name.trim()) {
+            alert('กรุณาระบุชื่อ Version'); return;
+        }
+        if (!selectedUploader) {
+            alert('กรุณาระบุชื่อผู้อัพโหลด'); return;
+        }
+        setIsCreatingVersion(true);
+        try {
+            if (versionFiles.length === 0) {
+                // ไม่มีไฟล์ — สร้าง 1 version เปล่า
+                await createSingleVersion(null);
+            } else {
+                // มีไฟล์ — สร้างทีละไฟล์
+                for (let i = 0; i < versionFiles.length; i++) {
+                    const file = versionFiles[i];
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('shotId', shotData?.id.toString() || '');
+                    formData.append('fileName', file.name);
+                    formData.append('type', 'version');
+
+                    const uploadRes = await fetch(ENDPOINTS.UPLOAD_SHOT, { method: 'POST', body: formData });
+                    if (!uploadRes.ok) throw new Error(`Upload failed: ${file.name}`);
+                    const uploadData = await uploadRes.json();
+
+                    console.log('📦 uploadData:', JSON.stringify(uploadData)); // ← เช็คก่อน
+
+                    // ✅ เปลี่ยนจาก data.file.fileUrl → data.files[0].fileUrl
+                    const fileUrl = uploadData?.files?.[0]?.fileUrl;
+                    const file_id = uploadData?.files?.[0]?.id;
+
+                    if (!fileUrl) {
+                        throw new Error(`ไม่ได้รับ fileUrl สำหรับ: ${file.name}`);
+                    }
+
+                    localStorage.setItem("file_id", file_id);
+
+                    // ชื่อ version — ไฟล์แรกใช้ชื่อที่กรอก ที่เหลือใช้ชื่อไฟล์
+                    const vName = i === 0
+                        ? createVersionForm.version_name.trim()
+                        : file.name.replace(/\.[^/.]+$/, '');
+
+                    await createSingleVersion(fileUrl, vName, file_id);
+
+                    // set thumbnail จากไฟล์สุดท้าย
+                    if (i === versionFiles.length - 1) {
+                        setShotData(prev => ({ ...prev, thumbnail: fileUrl }));  // ✅ ใช้ได้เพราะอยู่ใน scope เดียวกัน
+
+                        const currentStored = JSON.parse(localStorage.getItem('selectedShot') || '{}');
+                        localStorage.setItem('selectedShot', JSON.stringify({
+                            ...currentStored,
+                            file_url: fileUrl,
+                            thumbnail: fileUrl   // ← เพิ่มบรรทัดนี้
+                        }));
+                    }
+
+                }
+            }
+
+            alert(`สร้าง ${versionFiles.length || 1} Version สำเร็จ!`);
+            setShowCreateVersion(false);
+            setCreateVersionForm({ version_name: '', status: 'wtg', description: '', link: '', task: '', task_id: null, });
+            setVersionFiles([]);
+            setVersionFilePreviews([]);
+            fetchShotVersions();
+            setSelectedUploader(null);
+            setUploaderQuery('');
+
+        } catch (error: any) {
+            console.error('Error creating version:', error);
+            alert('Failed to create version. Please try again.');
+        } finally {
+            setIsCreatingVersion(false);
+        }
+    };
+
+    const createSingleVersion = async (fileUrl: string | null, versionName?: string, fileId?: number | null) => {
+        const res = await fetch(ENDPOINTS.CREATE_SHOT_VERSION, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                entityType: 'shot',
+                entityId: shotData?.id,
+                version_name: versionName || createVersionForm.version_name.trim(),
+                status: createVersionForm.status,
+                description: createVersionForm.description || null,
+                link: createVersionForm.link || null,
+                task: createVersionForm.task || null,
+                task_id: createVersionForm.task_id ?? null,
+                file_url: fileUrl,
+                file_id: fileId ?? null,
+                uploaded_by: selectedUploader?.id ?? null,
+            })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(`Create version failed: ${JSON.stringify(err)}`);
+        }
+    };
+
+    const handleVersionFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault(); setIsDragging(false);
+        const files = Array.from(e.dataTransfer.files || []);
+        if (!files.length) return;
+        setVersionFiles(prev => [...prev, ...files]);
+        setVersionFilePreviews(prev => [
+            ...prev,
+            ...files.map(f => f.type.startsWith('image/') ? URL.createObjectURL(f) : '')
+        ]);
+        setCreateVersionForm(p => ({
+            ...p,
+            version_name: p.version_name || files[0].name.replace(/\.[^/.]+$/, '')
+        }));
+    };
+    const resetVersionForm = () => {
+        setShowCreateVersion(false);
+        setCreateVersionForm({
+            version_name: '', status: 'wtg', description: '', link: '', task: '',
+            task_id: null  // ← เพิ่ม
+        });
+        setVersionFiles([]);
+        setVersionFilePreviews([]);
+        setVersionNameFromFile(null);
+        setSelectedUploader(null);
+        setUploaderQuery('');
+        setTaskSearchQuery('');   // ← เพิ่ม
+        setTaskSearchOpen(false); // ← เพิ่ม
+        setVersionModalPosition({ x: 0, y: 0 });
+    };
+
+    const handleStatusClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowStatusMenu(!showStatusMenu);
+    };
+
+    const handleFiletaskChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files) return;
+
+        const selected = Array.from(e.target.files);
+        setFiles((prev) => [...prev, ...selected]);
+
+        e.target.value = '';
+    };
+
+    const filteredPeople = allPeople.filter(
+        (person: Person) =>
+            person.name.toLowerCase().includes(query.toLowerCase()) &&
+            !selectedPeople.some((selected: Person) => selected.id === person.id)
+    );
+
+
+    const handleNoteContextMenu = (
+        e: React.MouseEvent,
+        note: Note
+    ) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        setNoteContextMenu({
+            visible: true,
+            x: e.clientX,
+            y: e.clientY,
+            note
+        });
+    };
+
+    const fetchNotes = async () => {
+        if (!shotData?.id) return;
+
+        setLoadingNotes(true);
+        try {
+            const response = await fetch(`${ENDPOINTS.GET_NOTES}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    projectId: localStorage.getItem("projectId"),
+                    noteType: 'shot',
+                    typeId: shotData.id
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            setNotes(data);
+        } catch (error) {
+            console.error('Error fetching notes:', error);
+            setNotes([]);
+        } finally {
+            setLoadingNotes(false);
+        }
+    };
+
+    const fetchShotAssets = async () => {
+        if (!shotData?.id) return;
+
+        setLoadingAssets(true);
+        try {
+            const response = await fetch(ENDPOINTS.GET_ASSET_SHOT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shotId: shotData.id })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                setShotAssets(result.data || []);
+            } else {
+                setShotAssets([]);
+            }
+        } catch (error) {
+            console.error('Error fetching shot assets:', error);
+            setShotAssets([]);
+        } finally {
+            setLoadingAssets(false);
+
+        }
+    };
+
+    const handleStatusChange = async (newStatus: StatusType) => {
+        try {
+            // 1️⃣ ยิง API อัปเดต DB
+            await axios.post(ENDPOINTS.UPDATESHOT, {
+                shotId: shotData.id,
+                field: "status",
+                value: newStatus
+            });
+
+            // 2️⃣ update local state
+            const updated = { ...shotData, status: newStatus };
+            setShotData(updated);
+            setShowStatusMenu(false);
+
+            // 3️⃣ sync localStorage
+
+
+        } catch (error) {
+            console.error("❌ update status failed:", error);
+            alert("Failed to update status");
+        }
+    };
+
+    const updateShotField = async (
+        field: keyof ShotData,
+
+        value: any
+    ) => {
+        const dbField = shotFieldMap[field];
+
+        if (!dbField) {
+            console.warn(`⚠️ Field "${field}" cannot be updated`);
+            return;
+        }
+
+        try {
+            await axios.post(ENDPOINTS.UPDATESHOT, {
+                shotId: shotData.id,
+                field: dbField,
+                value
+            });
+
+            setShotData(prev => ({ ...prev, [field]: value }));
+
+        } catch (err) {
+            console.error("❌ update shot failed:", err);
+            alert("Update failed");
+        }
+    };
+
+    const handleDeleteNote = async (noteId: number) => {
+        try {
+            const response = await axios.delete(`${ENDPOINTS.DELETE_NOTE}/${noteId}`);
+
+            if (response.status !== 200 && response.status !== 204) {
+                throw new Error(`Delete failed with status ${response.status}`);
+            }
+
+            // close context menu
+            setNoteContextMenu(null);
+
+            // optimistic update
+            setNotes(prevNotes => prevNotes.filter(note => note.id !== noteId));
+
+        } catch (err) {
+            console.error("❌ DELETE FAILED:", err);
+            alert(err instanceof Error ? err.message : "Failed to delete note");
+            fetchNotes();
+        }
+    };
+
+    const updateDescription = async (payload: { description: string }) => {
+        try {
+            await axios.post(ENDPOINTS.UPDATESHOT, {
+                shotId: shotData.id,
+                field: "description",
+                value: payload.description
+            });
+
+            const updated = { ...shotData, description: payload.description };
+            setShotData(updated);
+            // const stored = JSON.parse(localStorage.getItem("selectedShot") || "{}");
+
+        } catch (err) {
+            console.error("❌ update description failed:", err);
+            alert("Failed to update description");
+        }
+    };
+
+    const handleCreateNote = async () => {
+        if (!subject.trim() || !type || !body.trim()) {
+            alert('กรุณากรอก Subject, Type และ Message ก่อนสร้าง');
+            return;
+        }
+
+        try {
+            setUploading(true);
+
+            let uploadedFileUrls: string[] = [];
+
+            if (files.length > 0) {
+                const formData = new FormData();
+                files.forEach((file) => formData.append('file', file));
+                formData.append('shotId', shotData?.id.toString() || '');
+                formData.append('type', 'note');
+
+                const uploadResponse = await fetch(ENDPOINTS.UPLOAD_SHOT, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!uploadResponse.ok) throw new Error('File upload failed');
+
+                const uploadData = await uploadResponse.json();
+                uploadedFileUrls = uploadData.files?.map((f: any) => f.fileUrl).filter(Boolean) ?? [];
+            }
+
+            const noteData = {
+                projectId: projectId ?? null,
+                noteType: 'shot',
+                typeId: shotData?.id ?? null,
+                subject: subject || '',
+                body: body || '',
+                fileUrl: uploadedFileUrls.length > 1
+                    ? JSON.stringify(uploadedFileUrls)
+                    : (uploadedFileUrls[0] ?? null),
+                author: currentUser,
+                status: 'opn',
+                visibility: type ?? null,
+                tasks: selectedTasks.length > 0 ? selectedTasks : null,
+                assignedPeople: selectedPeople?.length > 0
+                    ? selectedPeople.map((person: Person) => person.id)
+                    : null,
+            };
+
+            const createResponse = await fetch(ENDPOINTS.CREATE_SHOT_NOTE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(noteData),
+            });
+
+            if (!createResponse.ok) {
+                const errorData = await createResponse.json();
+                throw new Error('Failed to create note: ' + JSON.stringify(errorData));
+            }
+
+            setshowCreateShot_Note(false);
+            setSelectedFile(null);
+            setSelectedPeople([]);
+            setSelectedTasks([]);
+            setFiles([]);
+            setSubject(shotData?.shotCode ? `Note on ${shotData.shotCode}` : '');
+            setBody('');
+            setType(null);
+
+            fetchNotes();
+
+        } catch (error) {
+            console.error('Error creating note:', error);
+            alert('Failed to create note. Please try again.');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleClickOutside = () => {
+        if (showStatusMenu) setShowStatusMenu(false);
+    };
+
+    const updateVersion = async (versionId: number, field: string, value: any) => {
+        try {
+            await axios.post(`${ENDPOINTS.UPDATE_VERSION}`, { versionId, field, value });
+            setTaskVersions(prev =>
+                prev.map(v => {
+                    if (v.id === versionId) {
+                        if (field === 'uploaded_by') {
+                            const user = allPeople.find(p => p.id === value);
+                            return { ...v, uploaded_by: value, uploaded_by_name: user?.name };
+                        }
+                        return { ...v, [field]: value };
+                    }
+                    return v;
+                })
+            );
+            // รีเฟรชจาก server
+            if (selectedTask) {
+                await fetchTaskVersions(selectedTask.id);
+            }
+            return true;
+        } catch (err) {
+            console.error('Update version error:', err);
+            alert('ไม่สามารถอัปเดทข้อมูลได้');
+            return false;
+        }
+    };
+
+    const handleFormChange = (field: string, value: any) => {
+        setCreateTaskForm(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    const handleCreateTask = async () => {
+        if (isCreatingTask) return;
+
+        try {
+            if (!createTaskForm.task_name.trim()) {
+                alert("กรุณากระบุชื่องาน");
+                return;
+            }
+
+            setIsCreatingTask(true);
+
+            const payload = {
+                project_id: projectId,
+                task_name: createTaskForm.task_name.trim(),
+                entity_type: 'shot',
+                entity_id: shotId,
+                status: createTaskForm.status || 'wtg',
+                start_date: createTaskForm.start_date || null,
+                due_date: createTaskForm.due_date || null,
+                description: createTaskForm.description || null,
+                file_url: createTaskForm.file_url || null,
+                pipeline_step_id: null  // ตั้งเป็น null
+            };
+
+            // สร้าง task
+            await axios.post(`${ENDPOINTS.ADD_TASK}`, payload);
+
+            // รีเฟรชข้อมูล tasks
+            const tasksRes = await axios.post(ENDPOINTS.SHOT_TASK, {
+                project_id: projectId,
+                entity_type: "shot",
+                entity_id: shotId
+            });
+            setTasks(tasksRes.data);
+
+            // รีเซ็ต form
+            setCreateTaskForm({
+                task_name: '',
+                status: 'wtg',
+                start_date: '',
+                due_date: '',
+                description: '',
+                file_url: ''
+            });
+            setShowCreateShot_Task(false);
+
+
+        } catch (err: any) {
+            console.error("Create task error:", err);
+            alert(err.response?.data?.message || "ไม่สามารถสร้างงานได้");
+        } finally {
+            setIsCreatingTask(false);
+        }
+    };
+
+    const fetchTaskVersions = async (taskId: number) => {
+        setIsLoadingVersions(true);
+        try {
+            const res = await axios.post(`${ENDPOINTS.TASK_VERSIONS}`, {
+                entityType: 'task',
+                entityId: taskId
+            });
+            setTaskVersions(res.data);
+        } catch (err) {
+            console.error("Failed to fetch versions:", err);
+            setTaskVersions([]);
+        } finally {
+            setIsLoadingVersions(false);
+        }
+    };
+
+    const handleCreateAsset = async () => {
+        if (isCreatingAsset) return;
+        if (!createAssetForm.asset_name.trim()) {
+            alert('กรุณาระบุชื่อ Asset');
+            return;
+        }
+
+        setIsCreatingAsset(true);  // ← ต้องมีบรรทัดนี้
+        try {
+            const res = await axios.post(ENDPOINTS.CREATE_SHOT_ASSET, {
+                project_id: projectId,
+                shot_id: shotId,
+                asset_name: createAssetForm.asset_name.trim(),
+                description: createAssetForm.description || null,
+                asset_type: createAssetForm.asset_type || null,
+            });
+
+            if (res.data.success) {
+                setShowCreateShot_Assets(false);
+                setCreateAssetForm({ asset_name: '', description: '', asset_type: 'CHR' });
+                fetchShotAssets();
+            }
+        } catch (err: any) {
+            alert(err.response?.data?.message || 'ไม่สามารถสร้าง Asset ได้');
+        } finally {
+            setIsCreatingAsset(false);  // ← ต้องมีบรรทัดนี้
+        }
+    };
+
+    // ============================================================
+    // Shared thumbnail upload logic (used by both handlers)
+    // ============================================================
+    const handleThumbnailUpload = async (file: File) => {
+        if (file.size > 500 * 1024 * 1024) {
+            alert(`ไฟล์ใหญ่เกิน 500MB (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+            return;
+        }
+
+        setIsUploadingThumbnail(true);
+
+        const formData = new FormData();
+        formData.append("shotId", shotData.id.toString());
+        formData.append("file", file);
+        formData.append("fileName", file.name);
+        formData.append("oldImageUrl", shotData.thumbnail || "");
+        formData.append("type", file.type.split('/')[0]);
+
+        try {
+            const res = await fetch(ENDPOINTS.UPLOAD_SHOT, {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await res.json();
+            console.log('📥 Upload response:', res.status, data);
+
+            if (res.ok) {
+                const newFileUrl = data?.files?.[0]?.fileUrl;
+
+                if (!newFileUrl) {
+                    alert('ไม่ได้รับ URL กลับมา');
+                    return;
+                }
+
+                // Force re-render by clearing then setting thumbnail
+                setShotData(prev => ({ ...prev, thumbnail: '' }));
+                setTimeout(() => {
+                    setShotData(prev => ({ ...prev, thumbnail: newFileUrl }));
+                }, 50);
+
+                const stored = JSON.parse(localStorage.getItem("selectedShot") || "{}");
+                localStorage.setItem("selectedShot", JSON.stringify({ ...stored, thumbnail: newFileUrl }));
+            } else {
+                console.error('❌ Upload failed:', data);
+                alert("Upload failed: " + (data.error || "Unknown error"));
+            }
+        } catch (err) {
+            console.error("❌ Upload error:", err);
+            alert("Upload error: " + err);
+        } finally {
+            // ✅ Always reset uploading state — this was the bug
+            console.log('🔓 setIsUploadingThumbnail(false) called');
+            setIsUploadingThumbnail(false);
+        }
+    };
+
+    const renderTabContent = () => {
+        switch (activeTab) {
+
+            case 'Shot Info':
+                return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InfoRow label="Shot Code" value={shotData.shotCode} />
+                        <InfoRow label="Sequence" value={shotData.sequence} />
+                        <InfoRow label="Status" value={statusConfig[shotData.status].label} />
+                        <InfoRow label="Due Date" value={shotData.dueDate} />
+                        <div className="md:col-span-2">
+                            <InfoRow label="Description" value={shotData.description} />
+                        </div>
+                    </div>
+                );
+
+            case 'Tasks':
+                return (
+                    <TaskTab
+                        tasks={tasks}
+                        loadingTasks={loadingTasks} // ⭐ เพิ่ม
+
+                        onTaskClick={(task: Task) => setSelectedTask(task)}
+                        onTaskDeleted={(taskId: number) => {
+                            setTasks(prev => prev.filter(t => t.id !== taskId));
+
+                        }}
+                        selectedTaskId={selectedTask?.id ?? null}
+                        onClosePanel={() => {
+                            setIsPanelOpen(false);
+                            setTimeout(() => setSelectedTask(null), 300);
+                        }}
+                    />
+                );
+
+            case 'Notes':
+                return (
+                    <NoteTab
+                        notes={notes}
+                        loadingNotes={loadingNotes}
+                        openAssignedDropdown={openAssignedDropdown}
+                        setOpenAssignedDropdown={setOpenAssignedDropdown}
+                        onContextMenu={handleNoteContextMenu}
+                        onDeleteNote={(noteId: number) => {
+                            const note = notes.find(n => n.id === noteId);
+                            setDeleteNoteConfirm({
+                                noteId,
+                                subject: note?.subject || ''
+                            });
+                        }}
+                        onNoteClick={(note: Note) => {
+                            setSelectedNote(note);
+                            setIsNotePanelOpen(false);
+                            setTimeout(() => setIsNotePanelOpen(true), 10);
+                        }}
+                    />
+                );
+
+            case 'Versions':
+                return (
+                    <VersionTab
+                        versions={shotVersions}
+                        isLoadingVersions={isLoadingShotVersions}
+                        onUpdateVersion={async (versionId, field, value) => {
+                            try {
+                                await axios.post(`${ENDPOINTS.UPDATE_VERSION}`, { versionId, field, value });
+                                setShotVersions(prev => prev.map(v => v.id === versionId ? { ...v, [field]: value } : v));
+                                return true;
+                            } catch { alert('ไม่สามารถอัปเดทได้'); return false; }
+                        }}
+
+                        onDeleteVersion={async (versionId: number) => {
+                            try {
+                                const res = await axios.delete(`${ENDPOINTS.DELETE_SHOT_VERSION}/${versionId}`, {
+                                    data: { entityId: shotData?.id }
+                                });
+                                removeVersionFromState(versionId);
+                                const newThumb = res.data.newThumbnail;
+                                if (newThumb) {
+                                    setShotData(prev => (prev ? { ...prev, thumbnail: newThumb } : prev) as ShotData);
+                                    const currentStored = JSON.parse(localStorage.getItem('selectedShot') || '{}');
+                                    localStorage.setItem('selectedShot', JSON.stringify({
+                                        ...currentStored,
+                                        file_url: newThumb,
+                                        thumbnail: newThumb
+                                    }));
+                                } else {
+                                    // ถ้าไม่มี newThumbnail = ลบหมดแล้ว → clear thumbnail
+                                    setShotData(prev => (prev ? { ...prev, thumbnail: '' } : prev) as ShotData);
+                                    const currentStored = JSON.parse(localStorage.getItem('selectedShot') || '{}');
+                                    localStorage.setItem('selectedShot', JSON.stringify({
+                                        ...currentStored,
+                                        file_url: '',
+                                        thumbnail: ''
+                                    }));
+                                }
+                            } catch {
+                                alert('ไม่สามารถลบได้');
+                            }
+                        }}
+                        formatDate={formatDate}
+                    />
+                );
+
+            case 'Assets':
+                return (
+                    <Asset_ShotTab
+                        shotAssets={shotAssets}
+                        loadingAssets={loadingAssets}
+                        formatDateThai={formatDate}
+                        onAssetUpdate={fetchShotAssets}
+                    />
+                );
+
+            case 'Publishes':
+                return (
+                    <div className="bg-gradient-to-br from-gray-800 to-gray-700 p-6 rounded-xl border border-gray-600/50 shadow-lg">
+                        <div className="space-y-3 text-gray-200">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">📤</span>
+                                <div>
+                                    <p className="font-medium">Last publish: v002</p>
+                                    <p className="text-sm text-gray-400 mt-1">Published by John Doe</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+
+            case 'Files':
+                return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="bg-gradient-to-br from-gray-800 to-gray-700 p-4 rounded-xl border border-gray-600/50 hover:border-blue-500/50 transition-all hover:shadow-lg cursor-pointer">
+                            <p className="flex items-center gap-3 text-gray-200">
+                                <span className="text-2xl">📄</span>
+                                <span className="font-medium">storyboard.pdf</span>
+                            </p>
+                        </div>
+                        <div className="bg-gradient-to-br from-gray-800 to-gray-700 p-4 rounded-xl border border-gray-600/50 hover:border-blue-500/50 transition-all hover:shadow-lg cursor-pointer">
+                            <p className="flex items-center gap-3 text-gray-200">
+                                <span className="text-2xl">🖼️</span>
+                                <span className="font-medium">reference.jpg</span>
+                            </p>
+                        </div>
+                    </div>
+                );
+
+            case 'History':
+                return (
+                    <div className="space-y-2">
+                        <div className="flex items-start gap-3 p-3 bg-gray-700/30 rounded-lg border-l-2 border-blue-500/50">
+                            <span className="text-sm text-gray-400">•</span>
+                            <p className="text-sm text-gray-300">Shot created by John</p>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-gray-700/30 rounded-lg border-l-2 border-green-500/50">
+                            <span className="text-sm text-gray-400">•</span>
+                            <p className="text-sm text-gray-300">Status changed to In Progress</p>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-gray-700/30 rounded-lg border-l-2 border-purple-500/50">
+                            <span className="text-sm text-gray-400">•</span>
+                            <p className="text-sm text-gray-300">Version v002 uploaded</p>
+                        </div>
+                    </div>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    //============================================================================================================================================//
+
+    return (
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800" onClick={handleClickOutside}
+            onMouseMove={handleMouseMove}
+            onMouseUp={() => setIsResizing(false)}
+        >
+            <div className="pt-14">
+                <Navbar_Project activeTab="other" />
+            </div>
+
+            <div className="pt-12 flex-1">
+                <div className="p-6 max-w-[1600px] mx-auto">
+                    {/* Header Card - ปรับให้กระชับขึ้น */}
+                    <div className="w-full bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50">
+                        {/* Breadcrumb - ย่อให้เล็กลง */}
+                        <div className="mb-4 flex items-center gap-2 text-sm text-gray-400">
+                            <span className="hover:text-white cursor-pointer transition-colors">📁 {shotData.sequence}</span>
+                            <span className="text-gray-600">›</span>
+                            <span className="font-bold text-white">🎬 {shotData.shotCode}</span>
+                        </div>
+
+                        {/* Preview Modal */}
+                        {showPreview && shotData.thumbnail && (
+                            <div
+                                className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm"
+                                onClick={() => setShowPreview(false)}
+                            >
+                                <button
+                                    onClick={() => setShowPreview(false)}
+                                    className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all hover:scale-110"
+                                >
+                                    <X className="w-6 h-6 text-white" />
+                                </button>
+
+                                <div className="max-w-5xl max-h-[85vh] w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                                    {shotData.thumbnail.match(/\.(mp4|webm|ogg|mov|avi)$/i) ? (
+                                        <video
+                                            src={ENDPOINTS.image_url + shotData.thumbnail}
+                                            className="w-full h-full object-contain rounded-2xl shadow-2xl"
+                                            controls
+                                            autoPlay
+                                        />
+                                    ) : (
+                                        <img
+                                            src={ENDPOINTS.image_url + shotData.thumbnail}
+                                            alt="Preview"
+                                            className="w-full h-full object-contain rounded-2xl shadow-2xl"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Main Content - ปรับให้อยู่ในแถวเดียว */}
+                        <div className="grid grid-cols-12 gap-4">
+                            {/* Thumbnail - ลดขนาดลง */}
+                            <div className="col-span-3">
+                                <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-2xl border border-gray-600/30 group">
+                                    {/* Background gradient - animated */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black animate-pulse"></div>
+
+                                    {shotData.thumbnail ? (
+                                        <>
+                                            {shotData.thumbnail.match(/\.(mp4|webm|ogg|mov|avi)$/i) ? (
+                                                <video
+                                                    src={ENDPOINTS.image_url + shotData.thumbnail}
+                                                    className="relative w-full h-full object-cover z-10"
+                                                    muted
+                                                    loop
+                                                    autoPlay
+                                                    onLoadStart={() => setIsMediaLoading(true)}
+                                                    onLoadedData={() => setIsMediaLoading(false)}
+                                                    style={{ opacity: isMediaLoading ? 0 : 1, transition: 'opacity 0.3s' }}
+                                                />
+                                            ) : (
+                                                <>
+                                                    <img
+                                                        src={ENDPOINTS.image_url + shotData.thumbnail}
+                                                        alt=""
+                                                        className="absolute inset-0 w-full h-full object-cover scale-110 blur-md opacity-60 pointer-events-none"
+                                                        aria-hidden="true"
+                                                    />
+                                                    <img
+                                                        src={ENDPOINTS.image_url + shotData.thumbnail}
+                                                        alt="Shot thumbnail"
+                                                        className="relative w-full h-full object-contain transition-transform duration-300 group-hover:scale-105 cursor-pointer z-10"
+                                                        onLoadStart={() => setIsMediaLoading(true)}
+                                                        onLoad={() => setIsMediaLoading(false)}
+                                                        style={{ opacity: isMediaLoading ? 0 : 1, transition: 'opacity 0.3s' }}
+                                                    />
+                                                </>
+                                            )}
+
+                                            {/* Loading overlay */}
+                                            {isMediaLoading && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm z-20">
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <div className="w-8 h-8 border-2 border-gray-400 border-t-white rounded-full animate-spin" />
+                                                        <p className="text-gray-300 text-sm">Loading...</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="relative w-full h-full flex flex-col items-center justify-center gap-3 z-10">
+                                            <div className="p-4 rounded-full bg-gray-800/50 backdrop-blur-sm">
+                                                <Image className="w-10 h-10 text-gray-400" />
+                                            </div>
+                                            <p className="text-gray-400 text-sm font-medium">No preview available</p>
+                                            <p className="text-gray-500 text-xs">Click to upload</p>
+                                        </div>
+                                    )}
+
+                                    {/* Hover Controls - shown when thumbnail EXISTS */}
+                                    {shotData.thumbnail && (
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-gradient-to-t from-black/80 via-black/50 to-transparent z-20">
+                                            <div className="flex gap-3">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        if (shotData.thumbnail.match(/\.(mp4|webm|ogg|mov|avi)$/i)) {
+                                                            // ✅ ดึง version ล่าสุด (index 0 เพราะ sort จากใหม่ไปเก่า)
+                                                            const latestVersion = shotVersions[0] ?? null;
+
+                                                            localStorage.setItem("selectedVideo", JSON.stringify({
+                                                                videoUrl: ENDPOINTS.image_url + shotData.thumbnail,
+                                                                shotCode: shotData.shotCode,
+                                                                sequence: shotData.sequence,
+                                                                status: shotData.status,
+                                                                description: shotData.description,
+                                                                dueDate: shotData.dueDate,
+                                                                shotId: shotData.id,
+                                                                // ✅ เพิ่ม version data
+                                                                versionId: latestVersion?.id ?? null,
+                                                                versionName: latestVersion?.version_name ?? null,
+                                                                versionStatus: latestVersion?.status ?? null,
+                                                                versionUploadedBy: latestVersion?.uploaded_by_name ?? null,
+                                                                versionCreatedAt: latestVersion?.created_at ?? null,
+                                                                versionDescription: latestVersion?.description ?? null,
+                                                            }));
+                                                            navigate('/Others_Video');
+                                                        } else {
+                                                            setShowPreview(true);
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-400 hover:to-blue-400 active:scale-95 text-white rounded-lg flex items-center gap-2 text-sm font-medium shadow-lg hover:shadow-blue-500/50 transition-all duration-200"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                    View
+                                                </button>
+                                                <label className={`px-4 py-2 text-white rounded-lg flex items-center gap-2 text-sm font-medium shadow-lg transition-all duration-200
+                                                    ${thumbnailDisabled
+                                                        ? 'bg-gray-600 opacity-50 cursor-not-allowed pointer-events-none'
+                                                        : 'bg-emerald-600 hover:bg-emerald-500 active:scale-95 cursor-pointer hover:shadow-emerald-500/50'
+                                                    }`}>
+                                                    <Upload className="w-4 h-4" />
+                                                    {isUploadingThumbnail ? 'Uploading...' : 'Change'}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        disabled={thumbnailDisabled}
+                                                        onChange={async (e) => {
+                                                            if (!e.target.files?.[0]) return;
+                                                            await handleThumbnailUpload(e.target.files[0]);
+                                                        }}
+                                                    />
+                                                </label>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Upload zone when NO thumbnail */}
+                                    {!shotData.thumbnail && (
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className={`absolute inset-0 w-full h-full opacity-0 z-30
+                                                ${thumbnailDisabled ? 'cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                                            disabled={thumbnailDisabled}
+                                            onChange={async (e) => {
+                                                if (!e.target.files?.[0]) return;
+                                                await handleThumbnailUpload(e.target.files[0]);
+                                            }}
+                                        />
+                                    )}
+
+                                    {/* Uploading overlay */}
+                                    {isUploadingThumbnail && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-900/70 backdrop-blur-sm z-30">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <div className="w-8 h-8 border-2 border-gray-400 border-t-white rounded-full animate-spin" />
+                                                <p className="text-gray-300 text-sm">Uploading...</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Info Grid - ย่อให้อยู่ในพื้นที่เดียว */}
+                            <div className="col-span-9 grid grid-cols-3 gap-3">
+                                {/* Shot Code */}
+                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                        <span>🎬</span>
+                                        Shot Code
+                                    </label>
+                                    {editingField === 'shotCode' ? (
+                                        <input
+                                            value={shotData.shotCode}
+                                            autoFocus
+                                            onChange={(e) => setShotData(prev => ({ ...prev, shotCode: e.target.value }))}
+                                            onBlur={() => {
+                                                updateShotField("shotCode", shotData.shotCode);
+                                                setEditingField(null);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    updateShotField("shotCode", shotData.shotCode);
+                                                    setEditingField(null);
+                                                }
+                                                if (e.key === "Escape") setEditingField(null);
+                                            }}
+                                            className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1.5 text-white text-sm font-semibold"
+                                        />
+                                    ) : (
+                                        <p
+                                            className="text-white font-semibold cursor-pointer hover:bg-gray-700/50 px-2 py-1.5 rounded transition-colors break-words "
+                                            onClick={() => setEditingField('shotCode')}
+                                        >
+                                            {shotData.shotCode}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Sequence */}
+                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                        <span>📁</span>
+                                        Sequence
+                                    </label>
+                                    <p className="text-white font-semibold px-2 py-1.5 break-words">{shotData.sequence}</p>
+                                </div>
+
+                                {/* Status */}
+                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50 relative">
+                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                        <span>🎯</span>
+                                        Status
+                                    </label>
+                                    <button
+                                        onClick={handleStatusClick}
+                                        className="flex items-center gap-2 px-3 py-1.5 text-white rounded-xl font-medium transition-all w-full justify-between text-sm bg-gradient-to-r from-gray-700 to-gray-700 hover:from-gray-600 hover:to-gray-600"
+
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {statusConfig[shotData.status].icon === '-' ? (
+                                                <span className="text-gray-400 font-bold">-</span>
+                                            ) : (
+                                                <div className={`w-2 h-2 rounded-full ${statusConfig[shotData.status].color}`}></div>
+                                            )}
+                                            <span className="text-sm">{statusConfig[shotData.status].label}</span>
+                                        </div>
+                                        <ChevronDown className="w-5" />
+
+                                    </button>
+
+                                    {showStatusMenu && (
+                                        <div className="absolute left-0 mt-1 bg-gray-800 rounded-lg shadow-2xl z-50 w-full border border-gray-700">
+                                            {(Object.entries(statusConfig) as [StatusType, { label: string; fullLabel: string; color: string; icon: string }][]).map(([key, config]) => (
+                                                <button
+                                                    key={key}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleStatusChange(key);
+                                                    }}
+                                                    className="flex items-center gap-5 w-full px-3 py-2 hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg text-left transition-colors bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-600 hover:to-gray-600"
+
+                                                >
+                                                    {config.icon === '-' ? (
+                                                        <span className="text-gray-400 font-bold w-2 text-center">-</span>
+                                                    ) : (
+                                                        <div className={`w-2 h-2 rounded-full ${config.color}`}></div>
+                                                    )}
+                                                    <div className="text-xs text-gray-200 flex items-center gap-5">
+                                                        <span className="inline-block w-8">
+                                                            {config.label}
+                                                        </span>
+                                                        <span>{config.fullLabel}</span>
+                                                    </div>
+                                                    {shotData.status === key && (
+                                                        <Check className="w-4 h-4 text-blue-400 ml-auto " />
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Due Date */}
+                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                        <span>📅</span>
+                                        Due Date
+                                    </label>
+                                    <p className="text-white font-semibold px-2 py-1.5 text-sm">{shotData.dueDate}</p>
+                                </div>
+
+                                {/* Tags */}
+                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                        <span>🏷️</span>
+                                        Tags
+                                    </label>
+                                    {shotData.tags.length > 0 ? (
+                                        <div className="flex gap-1.5 flex-wrap">
+                                            {shotData.tags.map((tag, index) => (
+                                                <span key={index} className="px-2 py-0.5 bg-blue-600/20 border border-blue-500/30 text-blue-300 text-xs rounded">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-gray-500 text-xs italic px-2 py-1.5">No tags</p>
+                                    )}
+                                </div>
+
+                                {/* Description - ใช้พื้นที่ที่เหลือ */}
+                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                        <span>📝</span>
+                                        Description
+                                    </label>
+                                    {editingField === 'description' ? (
+                                        <textarea
+                                            value={shotData.description}
+                                            autoFocus
+                                            rows={2}
+                                            onChange={(e) => setShotData(prev => ({ ...prev, description: e.target.value }))}
+                                            onBlur={() => {
+                                                updateDescription({ description: shotData.description });
+                                                setEditingField(null);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    updateDescription({ description: shotData.description });
+                                                    setEditingField(null);
+                                                }
+                                                if (e.key === "Escape") setEditingField(null);
+                                            }}
+                                            className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1.5 text-white text-xs resize-none"
+                                        />
+                                    ) : (
+                                        <p
+                                            className="text-white text-xs cursor-pointer hover:bg-gray-700/50 px-2 py-1.5 rounded transition-colors line-clamp-2"
+                                            onClick={() => setEditingField('description')}
+                                        >
+                                            {shotData.description || <span className="text-gray-500 italic">Click to add...</span>}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tabs - ทำให้เล็กและกระชับ */}
+                        <nav className="flex items-center gap-2 border-t border-gray-700/50 pt-4 mt-4 overflow-x-auto pb-1">
+                            {['Shot Info', 'Tasks', 'Notes', 'Versions', 'Assets', 'Publishes', 'Files', 'History'].map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === tab
+                                        ? 'text-white shadow-lg bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-700 hover:to-blue-600'
+                                        : 'text-gray-300 bg-gradient-to-r from-gray-700 to-gray-700 hover:from-gray-600 hover:to-gray-600'
+                                        }`}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+
+                    {/* Tab Content Section - ปรับให้กระชับ */}
+                    <div className="mt-4 p-5 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-xl border border-gray-700/50">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg text-white font-bold flex items-center gap-2">
+                                <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
+                                {activeTab}
+                            </h3>
+
+                            {/* Action Buttons - ทำให้เล็กลง */}
+                            <div className="flex gap-2">
+                                {activeTab === 'Tasks' && (
+                                    <button
+                                        onClick={() => setShowCreateShot_Task(true)}
+                                        className="px-3 py-1.5  text-white text-xs font-medium rounded-lg flex items-center gap-1.5 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+
+                                    >
+                                        <span>+</span>
+                                        Add Task
+                                    </button>
+                                )}
+
+                                {activeTab === 'Notes' && (
+                                    <button
+                                        onClick={() => setshowCreateShot_Note(true)}
+                                        className="px-3 py-1.5  text-white text-xs font-medium rounded-lg flex items-center gap-1.5 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+
+                                    >
+                                        <span>+</span>
+                                        Add Note
+                                    </button>
+                                )}
+
+                                {activeTab === 'Versions' && (
+                                    <button
+                                        onClick={() => setShowCreateVersion(true)}
+                                        className="px-3 py-1.5 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+                                    >
+                                        <span>+</span> Add Version
+                                    </button>
+                                )}
+
+                                {activeTab === 'Assets' && (
+                                    <button
+                                        onClick={() => setShowCreateShot_Assets(true)}
+                                        className="px-3 py-1.5  text-white text-xs font-medium rounded-lg flex items-center gap-1.5 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+
+                                    >
+                                        <span>+</span>
+                                        Add Asset
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Content - ปรับให้มี max-height */}
+                        <div className="relative">
+                            {renderTabContent()}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {showCreateShot_Task && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/60"
+                        onClick={() => !isCreatingTask && setShowCreateShot_Task(false)}
+                    />
+
+                    {/* Modal */}
+                    <div className="relative w-full max-w-2xl bg-gradient-to-br from-[#0f1729] via-[#162038] to-[#0d1420] rounded-2xl shadow-2xl shadow-blue-900/50 border border-blue-500/20 overflow-hidden">
+                        {/* Header */}
+                        <div className="px-6 py-3 bg-gradient-to-r from-[#1e3a5f] via-[#1a2f4d] to-[#152640] border-b border-blue-500/30 flex items-center justify-between">
+                            <h2 className="text-lg text-gray-200 font-normal">
+                                Create a new Task <span className="text-gray-400 text-sm font-normal">for {shotData.shotCode}</span>
+                            </h2>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-3 max-h-[70vh] overflow-y-auto">
+                            {/* Task Name - Required */}
+                            <div className="grid grid-cols-[140px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">
+                                    Task Name: <span className="text-red-400">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Enter task name"
+                                    value={createTaskForm.task_name}
+                                    onChange={(e) => handleFormChange('task_name', e.target.value)}
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500"
+                                />
+                            </div>
+
+                            {/* Link to Shot (Read-only) */}
+                            <div className="grid grid-cols-[140px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">
+                                    Link to:
+                                </label>
+                                <input
+                                    type="text"
+                                    value={`Shot: ${shotData.shotCode}`}
+                                    readOnly
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded text-gray-400 text-sm cursor-not-allowed"
+                                />
+                            </div>
+
+                            {/* Start Date */}
+                            <div className="grid grid-cols-[140px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">
+                                    Start Date:
+                                </label>
+                                <input
+                                    type="date"
+                                    value={createTaskForm.start_date}
+                                    onChange={(e) => handleFormChange('start_date', e.target.value)}
+                                    className="h-9 px-3 bg-white/4  border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+                                />
+                            </div>
+
+                            {/* Due Date */}
+                            <div className="grid grid-cols-[140px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">
+                                    Due Date:
+                                </label>
+                                <input
+                                    type="date"
+                                    value={createTaskForm.due_date}
+                                    onChange={(e) => handleFormChange('due_date', e.target.value)}
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+                                />
+                            </div>
+
+                            {/* Description */}
+                            <div className="grid grid-cols-[140px_1fr] gap-4 items-start">
+                                <label className="text-sm text-gray-300 text-right pt-2">
+                                    Description:
+                                </label>
+                                <textarea
+                                    placeholder="Enter task description (optional)"
+                                    value={createTaskForm.description}
+                                    onChange={(e) => handleFormChange('description', e.target.value)}
+                                    rows={3}
+                                    className="px-3 py-2 bg-white/4 border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 resize-none"
+                                />
+                            </div>
+
+
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-3 bg-gradient-to-r from-[#0a1018] to-[#0d1420] rounded-b flex justify-between items-center gap-3">
+                            <button
+                                onClick={() => setShowCreateShot_Task(false)}
+                                disabled={isCreatingTask}
+                                className="px-4 h-9 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-700 hover:to-gray-700 text-white text-sm rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={handleCreateTask}
+                                disabled={isCreatingTask}
+                                className="px-4 h-9 bg-gradient-to-r from-[#1e88e5] to-[#1565c0] hover:from-[#1976d2] hover:to-[#0d47a1] text-sm rounded-lg text-white shadow-lg shadow-blue-500/30 transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isCreatingTask ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>กำลังสร้าง...</span>
+                                    </>
+                                ) : (
+                                    'Create Task'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+
+            {showCreateShot_Versions && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/60"
+                        onClick={() => setShowCreateShot_Versions(false)}
+                    />
+
+                    {/* Modal */}
+                    <div className="relative w-full max-w-2xl bg-[#4a4a4a] rounded shadow-2xl">
+                        {/* Header */}
+                        <div className="px-6 py-3 bg-[#3a3a3a] rounded-t flex items-center justify-between">
+                            <h2 className="text-lg text-gray-200 font-normal">
+                                Create a new Versions <span className="text-gray-400 text-sm font-normal">- Global Form</span>
+                            </h2>
+                            <button
+                                onClick={() => setShowCreateShot_Versions(false)}
+                                className="text-gray-400 hover:text-white text-xl"
+                            >
+                                ⚙️
+                            </button>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-3 bg-[#3a3a3a] rounded-b flex justify-end items-center gap-3">
+                            <button
+                                onClick={() => setShowCreateShot_Versions(false)}
+                                className="px-4 h-9 bg-[#5a5a5a] hover:bg-[#6a6a6a] text-white text-sm rounded flex items-center justify-center"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                className="px-4 h-9 bg-[#2d7a9e] hover:bg-[#3a8db5] text-white text-sm rounded flex items-center justify-center"
+                            >
+                                Create Versions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showCreateShot_Assets && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => !isCreatingAsset && setShowCreateShot_Assets(false)}
+                    />
+                    <div className="relative w-full max-w-lg bg-gradient-to-br from-[#0f1729] via-[#162038] to-[#0d1420] rounded-2xl shadow-2xl shadow-blue-900/50 border border-blue-500/20 overflow-hidden">
+
+                        {/* Header */}
+                        <div className="px-6 py-4 bg-gradient-to-r from-[#1e3a5f] via-[#1a2f4d] to-[#152640] border-b border-blue-500/30 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-base font-semibold text-gray-100">Create Asset</h2>
+                                <p className="text-xs text-blue-300/60 mt-0.5">
+                                    Linked to: <span className="text-blue-300 font-medium">{shotData.shotCode}</span>
+                                </p>
+                            </div>
+                            <div
+                                onClick={() => !isCreatingAsset && setShowCreateShot_Assets(false)}
+                                className="text-gray-500 hover:text-gray-200 text-xl leading-none transition-colors cursor-pointer"
+                            >×</div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-4">
+
+                            {/* Asset Name */}
+                            <div className="grid grid-cols-[130px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">
+                                    Asset Name <span className="text-red-400">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Hero_Character"
+                                    value={createAssetForm.asset_name}
+                                    onChange={(e) => setCreateAssetForm(p => ({ ...p, asset_name: e.target.value }))}
+                                    autoFocus
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-600 transition-colors"
+                                />
+                            </div>
+
+                            {/* Asset Type */}
+                            <div className="grid grid-cols-[130px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">Asset Type</label>
+                                <select
+                                    value={createAssetForm.asset_type}
+                                    onChange={(e) => setCreateAssetForm(p => ({ ...p, asset_type: e.target.value }))}
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                                >
+                                    <option value="Character">Character</option>
+                                    <option value="Environment">Environment</option>
+                                    <option value="Prop">Prop</option>
+                                    <option value="FX">FX</option>
+                                    <option value="Graphic">Graphic</option>
+                                    <option value="Matte Painting">Matte Painting</option>
+                                    <option value="Vehicle">Vehicle</option>
+                                    <option value="Weapon">Weapon</option>
+                                    <option value="Model">Model</option>
+                                    <option value="Theme">Theme</option>
+                                    <option value="Zone">Zone</option>
+                                    <option value="Part">Part</option>
+                                </select>
+                            </div>
+
+                            {/* Link to Shot (read-only) */}
+                            <div className="grid grid-cols-[130px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">Link to Shot</label>
+                                <div className="h-9 px-3 bg-white/4 border border-blue-500/10 rounded-lg text-gray-500 text-sm flex items-center gap-2 select-none">
+                                    <span className="flex-1 truncate w-1">{shotData.shotCode}</span>
+                                    <span className="ml-auto text-[10px] text-green-400/80 flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>
+                                        auto-linked
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Project (read-only) */}
+                            <div className="grid grid-cols-[130px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">Project</label>
+                                <div className="h-9 px-3 bg-white/4 border border-blue-500/10 rounded-lg text-gray-500 text-sm flex items-center select-none">
+                                    {projectData?.projectName || 'Unknown Project'}
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div className="grid grid-cols-[130px_1fr] gap-4 items-start">
+                                <label className="text-sm text-gray-300 text-right pt-2">Description</label>
+                                <textarea
+                                    placeholder="Optional description..."
+                                    value={createAssetForm.description}
+                                    onChange={(e) => setCreateAssetForm(p => ({ ...p, description: e.target.value }))}
+                                    rows={3}
+                                    className="px-3 py-2 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-600 resize-none transition-colors"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 bg-gradient-to-r from-[#0a1018] to-[#0d1420] border-t border-blue-500/20 flex items-center justify-between">
+                            <button
+                                onClick={() => setShowCreateShot_Assets(false)}
+                                disabled={isCreatingAsset}
+                                className="px-4 h-9 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white text-sm rounded-lg disabled:opacity-50 transition-all flex items-center"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreateAsset}
+                                disabled={isCreatingAsset || !createAssetForm.asset_name.trim()}
+                                className="px-5 h-9 bg-gradient-to-r from-[#1e88e5] to-[#1565c0] hover:from-[#1976d2] hover:to-[#0d47a1] text-white text-sm rounded-lg font-medium shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+                            >
+                                {isCreatingAsset ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span>Creating...</span>
+                                    </>
+                                ) : 'Create Asset'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+            {/* Create Note Modal */}
+            {showCreateShot_Note && (
+                <>
+                    <div
+                        className="fixed inset-0 z-40 bg-black/60"
+                        onClick={() => setshowCreateShot_Note(false)}
+                    />
+
+                    <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+                        <div
+                            style={{
+                                transform: `translate(${noteModalPosition?.x || 0}px, ${noteModalPosition?.y || 0}px)`
+                            }}
+                            className="relative w-full max-w-xl bg-gradient-to-br from-[#0f1729] via-[#162038] to-[#0d1420] rounded-2xl shadow-2xl shadow-blue-900/50 border border-blue-500/20 overflow-hidden pointer-events-auto"
+                        >
+                            <div
+                                onMouseDown={(e) => {
+                                    const startX = e.clientX;
+                                    const startY = e.clientY;
+                                    const startPos = noteModalPosition || { x: 0, y: 0 };
+
+                                    const handleMouseMove = (moveEvent: MouseEvent) => {
+                                        const deltaX = moveEvent.clientX - startX;
+                                        const deltaY = moveEvent.clientY - startY;
+                                        setNoteModalPosition({
+                                            x: startPos.x + deltaX,
+                                            y: startPos.y + deltaY
+                                        });
+                                    };
+
+                                    const handleMouseUp = () => {
+                                        document.removeEventListener('mousemove', handleMouseMove);
+                                        document.removeEventListener('mouseup', handleMouseUp);
+                                    };
+
+                                    document.addEventListener('mousemove', handleMouseMove);
+                                    document.addEventListener('mouseup', handleMouseUp);
+                                }}
+                                className="px-5 py-3 bg-gradient-to-r from-[#1e3a5f] via-[#1a2f4d] to-[#152640] border-b border-blue-500/30 cursor-grab active:cursor-grabbing select-none"
+                            >
+                                <div className="flex items-baseline justify-between">
+                                    <div className="flex items-baseline gap-2">
+                                        <h2 className="text-base font-semibold text-white">New Note</h2>
+                                        <span className="text-xs text-blue-300/60">- Global Form</span>
+                                    </div>
+                                    <div
+                                        onClick={() => setshowCreateShot_Note(false)}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        className="cursor-pointertext-gray-400 hover:text-white text-xl leading-none transition-colors"
+                                    >
+                                        ×
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="px-5 py-4 space-y-3">
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        Links
+                                    </label>
+                                    <div className="flex items-center gap-2 h-8 px-3 bg-[#0a1018] border border-blue-500/30 rounded-lg text-blue-50 text-sm">
+                                        <span className="truncate text-gray-400">
+                                            (Shot: {shotData?.shotCode || 'N/A'})
+                                        </span>
+                                        <span className="ml-auto text-[10px] text-green-400/80 flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 flex-shrink-0">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+                                            auto
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        📄 Tasks
+                                    </label>
+                                    <div className="p-3 bg-white/4 border border-blue-500/30 rounded-lg max-h-36 overflow-y-auto">
+                                        {loadingModalTasks ? (
+                                            <div className="flex items-center justify-center py-2 gap-2 text-gray-500 text-xs">
+                                                <div className="w-3 h-3 border border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                                                กำลังโหลด...
+                                            </div>
+                                        ) : modalTasks.length === 0 ? (
+                                            <p className="text-xs text-gray-600 italic">ไม่มี task สำหรับ shot นี้</p>
+                                        ) : (
+                                            <div className="flex flex-col gap-1.5">
+                                                {modalTasks.map((task) => (
+                                                    <label key={task.id} className="flex items-center gap-2 cursor-pointer group">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedTasks.includes(task.id)}
+                                                            onChange={() =>
+                                                                setSelectedTasks((prev) =>
+                                                                    prev.includes(task.id)
+                                                                        ? prev.filter((id) => id !== task.id)
+                                                                        : [...prev, task.id]
+                                                                )
+                                                            }
+                                                            className="w-3.5 h-3.5 rounded border-blue-500/30 bg-[#0a1018] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
+                                                        />
+                                                        <span className="text-xs text-gray-300 group-hover:text-white transition-colors truncate flex-1">
+                                                            {task.task_name}
+                                                        </span>
+                                                        {task.pipeline_step_name && (
+                                                            <span className="text-[10px] px-1.5 py-0.5 rounded text-blue-300/70 bg-blue-500/10 border border-blue-500/20 flex-shrink-0">
+                                                                {task.pipeline_step_name}
+                                                            </span>
+                                                        )}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {selectedTasks.length > 0 && (
+                                        <p className="text-[10px] text-blue-400">เลือกแล้ว {selectedTasks.length} task</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        Attach files
+                                    </label>
+
+                                    <label className="inline-flex items-center gap-2 px-3 h-8 rounded-lg border border-blue-500/30 bg-[#0a1018] text-blue-200 text-sm cursor-pointer hover:bg-blue-500/10 transition-all">
+                                        <Plus className="w-4 h-4" />
+
+                                        Upload file
+                                        <input
+                                            type="file"
+                                            multiple
+                                            onChange={handleFiletaskChange}
+                                            className="hidden"
+                                        />
+                                    </label>
+
+                                    {files.length > 0 && (
+                                        <div className="space-y-1 mt-1">
+                                            {files.map((file, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center justify-between px-2 py-1 text-xs bg-blue-500/10 border border-blue-500/20 rounded"
+                                                >
+                                                    <span className="truncate text-blue-100">
+                                                        {file.name}
+                                                    </span>
+                                                    <div
+
+                                                        onClick={() => removetaskFile(index)}
+                                                        className="cursor-pointer text-blue-300 hover:text-red-400"
+                                                    >
+                                                        ✕
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1.5 relative">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        To
+                                    </label>
+
+                                    <div className="flex flex-wrap gap-1 mb-1">
+                                        {selectedPeople.map((person) => (
+                                            <span
+                                                key={person.id}
+                                                className="flex items-center gap-1 px-2 py-0.5 text-xs bg-blue-500/20 text-blue-200 rounded"
+                                            >
+                                                {person.name}
+                                                <div
+                                                    onClick={() => removePerson(person.id)}
+                                                    className="cursor-pointer text-blue-300 hover:text-red-400"
+                                                >
+                                                    ✕
+                                                </div>
+                                            </span>
+                                        ))}
+                                    </div>
+
+                                    <input
+                                        type="text"
+                                        value={query}
+                                        onChange={(e) => {
+                                            setQuery(e.target.value);
+                                            setOpen(true);
+                                        }}
+                                        onFocus={() => setOpen(true)}
+                                        onBlur={() => setTimeout(() => setOpen(false), 200)}
+                                        className="w-full h-8 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-blue-50 text-sm placeholder-blue-400/40 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+                                        placeholder={loading ? "Loading..." : "Add people..."}
+                                        disabled={loading}
+                                    />
+
+                                    {open && filteredPeople.length > 0 && (
+                                        <div className="absolute z-10 mt-1 w-full bg-[#0a1018] border border-blue-500/30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                            {filteredPeople.map((person) => (
+                                                <div
+                                                    key={person.id}
+                                                    onClick={() => addPerson(person)}
+                                                    className="px-3 py-1.5 text-sm text-gray-200 hover:bg-blue-500/20 cursor-pointer"
+                                                >
+                                                    <div className="font-medium">{person.name}</div>
+                                                    <div className="text-xs text-gray-400">{person.email}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {open && query && filteredPeople.length === 0 && !loading && (
+                                        <div className="absolute z-10 mt-1 w-full bg-[#0a1018] border border-blue-500/30 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-400">
+                                            No people found
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        Subject <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={subject}
+                                        onChange={(e) => setSubject(e.target.value)}
+                                        className={`w-full h-8 px-3 bg-white/4 border rounded-lg text-blue-50 text-sm placeholder-blue-400/40 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400 transition-all ${subject.trim() === '' ? 'border-red-500/50' : 'border-blue-500/30'
+                                            }`}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        Type <span className="text-red-400">*</span>
+                                    </label>
+
+                                    <select
+                                        value={type ?? ''}
+                                        onChange={(e) => setType(e.target.value as NoteType)}
+                                        className={`w-full h-8 px-3 bg-white/4 border rounded-lg text-sm transition-all
+                                        ${type === null
+                                                ? 'border-blue-500/30 text-gray-400'
+                                                : 'border-blue-500/30 text-blue-50'}
+                                            focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400
+                                        `}
+                                    >
+                                        <option value="" disabled hidden>
+                                            — Please select —
+                                        </option>
+                                        <option value="Client">Client</option>
+                                        <option value="Internal">Internal</option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        Message <span className="text-red-400">*</span>
+                                    </label>
+                                    <textarea
+                                        value={body}
+                                        onChange={(e) => setBody(e.target.value)}
+                                        placeholder="Write your note here..."
+                                        rows={3}
+                                        className={`w-full px-3 py-2 bg-white/4 border rounded-lg text-blue-50 text-sm placeholder-blue-400/40 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400 transition-all resize-none ${body.trim() === '' ? 'border-blue-500/30' : 'border-blue-500/30'
+                                            }`}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="px-5 py-3 bg-gradient-to-r from-[#0a1018] to-[#0d1420] border-t border-blue-500/30 flex justify-end items-center gap-2">
+                                <button
+                                    onClick={() => setshowCreateShot_Note(false)}
+                                    className="px-4 h-8 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-700 hover:to-gray-700 text-xs rounded-lg text-gray-200 transition-all font-medium flex items-center"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    className="px-4 h-8 bg-gradient-to-r from-[#2196F3] to-[#1976D2] hover:from-[#1976D2] hover:to-[#1565C0] text-xs rounded-lg text-white shadow-lg shadow-blue-500/20 transition-all flex items-center font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={handleCreateNote}
+                                    disabled={uploading || subject.trim() === '' || !type || body.trim() === ''}
+                                >
+                                    {uploading ? 'Creating...' : 'Create Note'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Create Version Modal */}
+
+            {showCreateVersion && (
+                <>
+                    <div
+                        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                        onClick={() => !isCreatingVersion && resetVersionForm()}
+                    />
+
+                    <div className="fixed inset-0 z-45 flex items-center justify-center pointer-events-none">
+                        <div
+                            style={{
+                                transform: `translate(${versionModalPosition.x}px, ${versionModalPosition.y}px)`,
+                                maxHeight: 'calc(100vh - 60px)',
+                            }}
+                            className="relative w-full max-w-md pointer-events-auto flex flex-col bg-gradient-to-br from-[#0f1729] via-[#162038] to-[#0d1420] rounded-2xl shadow-2xl shadow-blue-900/50 border border-blue-500/20 overflow-hidden"
+                        >
+                            {/* Header — ลากได้ */}
+                            <div
+                                onMouseDown={(e) => {
+                                    const startX = e.clientX;
+                                    const startY = e.clientY;
+                                    const startPos = { ...versionModalPosition };
+                                    const onMove = (me: MouseEvent) => {
+                                        setVersionModalPosition({
+                                            x: startPos.x + me.clientX - startX,
+                                            y: startPos.y + me.clientY - startY,
+                                        });
+                                    };
+                                    const onUp = () => {
+                                        document.removeEventListener('mousemove', onMove);
+                                        document.removeEventListener('mouseup', onUp);
+                                    };
+                                    document.addEventListener('mousemove', onMove);
+                                    document.addEventListener('mouseup', onUp);
+                                }}
+                                className="px-6 py-4 bg-gradient-to-r from-[#1e3a5f] via-[#1a2f4d] to-[#152640] border-b border-blue-500/30 cursor-grab active:cursor-grabbing select-none flex items-center justify-between"
+                            >
+                                <div>
+                                    <h2 className="text-base font-semibold text-gray-100">Create Version</h2>
+                                    <p className="text-xs text-blue-300/60 mt-0.5">
+                                        Linked to: <span className="text-blue-300 font-medium">{shotData?.shotCode}</span>
+                                    </p>
+                                </div>
+                                <div
+                                    onMouseDown={e => e.stopPropagation()}
+                                    onClick={() => resetVersionForm()}
+                                    className="cursor-pointer text-gray-500 hover:text-gray-200 text-xl leading-none transition-colors"
+                                >
+                                    ×
+                                </div>
+                            </div>
+
+                            {/* Body */}
+                            <div className="p-6 space-y-3 max-h-[70vh] overflow-y-auto">
+
+                                {/* File Upload */}
+                                <div className="space-y-1">
+                                    <label className="text-xs text-gray-400 font-medium">Uploaded Version</label>
+                                    <div
+                                        onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                                        onDragLeave={() => setIsDragging(false)}
+                                        onDrop={handleVersionFileDrop}
+                                        className={`relative rounded-lg border border-dashed transition-all duration-150 ${isDragging
+                                            ? 'border-blue-500/60 bg-blue-500/8'
+                                            : 'border-white/10 hover:border-white/20 bg-white/3 hover:bg-white/5'
+                                            }`}
+                                    >
+                                        <label className="flex flex-col items-center justify-center py-5 px-4 cursor-pointer w-full">
+                                            {versionFiles.length > 0 ? (
+                                                <div className="w-full space-y-1.5">
+                                                    {versionFiles.map((file, i) => (
+                                                        <div key={i} className="flex items-center gap-2.5 px-2.5 py-1.5 bg-white/5 rounded-md">
+                                                            {versionFilePreviews[i] ? (
+                                                                <img src={versionFilePreviews[i]} className="w-8 h-8 object-cover rounded" />
+                                                            ) : (
+                                                                <span className="text-base">🎬</span>
+                                                            )}
+                                                            <span className="text-xs text-gray-300 truncate flex-1">{file.name}</span>
+                                                            <div
+                                                                onClick={e => { e.preventDefault(); removeVersionFile(i); }}
+                                                                className="text-gray-600 hover:text-red-400 transition-colors text-xs"
+                                                            >✕</div>
+                                                        </div>
+                                                    ))}
+                                                    <div className="flex items-center justify-center gap-1 text-xs text-blue-400/70 hover:text-blue-300 cursor-pointer py-0.5">
+                                                        <span>+ Add more files</span>
+                                                        <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleVersionFileSelect} />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-1.5 pointer-events-none">
+                                                    <span className="text-2xl text-gray-600">📎</span>
+                                                    <p className="text-xs text-gray-400">Drop files or click to browse</p>
+                                                </div>
+                                            )}
+                                            <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleVersionFileSelect} />
+                                        </label>
+                                    </div>
+                                </div>
+
+
+                                {/* Description */}
+                                <div className="space-y-1">
+                                    <label className="text-xs text-gray-400 font-medium">Description</label>
+                                    <textarea
+                                        placeholder="คำอธิบายเพิ่มเติมเกี่ยวกับเวอร์ชันนี้ (ไม่บังคับ)"
+
+                                        value={createVersionForm.description}
+                                        onChange={e => setCreateVersionForm(p => ({ ...p, description: e.target.value }))}
+                                        rows={2}
+                                        className="w-full px-3 py-2 bg-white/4  border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 resize-none transition-all"
+                                    />
+                                </div>
+
+                                {/* Version Name + Status */}
+                                <div className="grid grid-cols-1 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-gray-400 font-medium">Version Name <span className="text-red-400">*</span></label>
+                                        <input
+                                            type="text"
+                                            placeholder="ชื่อเวอร์ชัน เช่น v001, v002"
+
+                                            value={createVersionForm.version_name}
+                                            onChange={e => setCreateVersionForm(p => ({ ...p, version_name: e.target.value }))}
+                                            className="w-full h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 transition-all"
+                                        />
+                                    </div>
+
+                                </div>
+
+
+
+                                {/* Uploaded By */}
+                                <div className="space-y-1">
+                                    <label className="text-xs text-gray-500 font-medium uppercase tracking-wider">Uploaded By <span className="text-red-400">*</span></label>
+                                    <div className="relative">
+                                        {selectedUploader ? (
+                                            <div className="flex items-center gap-2 h-8 px-2.5 bg-white/4 border border-white/8 rounded-lg">
+                                                <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-white text-[9px] font-semibold">
+                                                        {selectedUploader.name[0].toUpperCase()}
+                                                    </span>
+                                                </div>
+                                                <span className="text-gray-200 text-xs flex-1 truncate">{selectedUploader.name}</span>
+                                                <div
+                                                    onClick={() => { setSelectedUploader(null); setUploaderQuery(''); }}
+                                                    className="text-gray-600 hover:text-red-400 text-xs cursor-pointer"
+                                                >✕</div>
+                                            </div>
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                value={uploaderQuery}
+                                                onChange={e => { setUploaderQuery(e.target.value); setUploaderOpen(true); }}
+                                                onFocus={() => setUploaderOpen(true)}
+                                                onBlur={() => setTimeout(() => setUploaderOpen(false), 200)}
+                                                placeholder={currentUser}
+                                                className="h-8 px-2.5 bg-white/4 border border-white/8 rounded-lg text-gray-200 text-xs focus:outline-none focus:border-blue-500/50 placeholder:text-gray-600 w-full transition-colors"
+                                            />
+                                        )}
+                                        {uploaderOpen && !selectedUploader && (
+                                            <div className="absolute z-50 top-full mt-1 w-full bg-[#0d1117] border border-white/10 rounded-lg shadow-xl max-h-36 overflow-y-auto">
+                                                {allPeople
+                                                    .filter(p => p.name.toLowerCase().includes(uploaderQuery.toLowerCase()))
+                                                    .map(person => (
+                                                        <div
+                                                            key={person.id}
+                                                            onMouseDown={() => { setSelectedUploader(person); setUploaderOpen(false); }}
+                                                            className="flex items-center gap-2 px-3 py-2 hover:bg-blue-500/15 cursor-pointer"
+                                                        >
+                                                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                                                <span className="text-white text-[9px] font-semibold">
+                                                                    {person.name[0].toUpperCase()}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs text-gray-200">{person.name}</p>
+                                                                <p className="text-[10px] text-gray-500">{person.email}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                }
+                                                {allPeople.filter(p => p.name.toLowerCase().includes(uploaderQuery.toLowerCase())).length === 0 && (
+                                                    <p className="px-3 py-2 text-xs text-gray-500">No people found</p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+
+
+                                {/* Task */}
+                                <div className="space-y-1">
+                                    <label className="text-xs text-gray-400 font-medium ">Task</label>
+                                    {createVersionForm.task_id ? (() => {
+                                        const t = tasks.find(t => t.id === createVersionForm.task_id);
+                                        if (!t) return null;
+                                        return (
+                                            <div className="flex items-center gap-2 h-9 px-3 bg-white/4  border border-blue-500/30 rounded-lg">
+                                                {t.pipeline_step ? (
+                                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: t.pipeline_step.color_hex || '#6b7280' }} />
+                                                ) : (
+                                                    <span className="text-sm flex-shrink-0">📋</span>
+                                                )}
+                                                <span className="text-gray-200 text-sm flex-1 truncate">{t.task_name}</span>
+                                                {t.pipeline_step && (
+                                                    <span
+                                                        className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
+                                                        style={{
+                                                            backgroundColor: (t.pipeline_step.color_hex || '#6b7280') + '33',
+                                                            color: t.pipeline_step.color_hex || '#9ca3af',
+                                                        }}
+                                                    >{t.pipeline_step.step_code}</span>
+                                                )}
+                                                <div
+                                                    onClick={() => { setCreateVersionForm(p => ({ ...p, task_id: null, task: '' })); setTaskSearchQuery(''); }}
+                                                    className="text-gray-600 hover:text-red-400 text-sm cursor-pointer flex-shrink-0"
+                                                >✕</div>
+                                            </div>
+                                        );
+                                    })() : (
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={taskSearchQuery}
+                                                onChange={e => { setTaskSearchQuery(e.target.value); setTaskSearchOpen(true); }}
+                                                onFocus={() => setTaskSearchOpen(true)}
+                                                onBlur={() => setTimeout(() => setTaskSearchOpen(false), 200)}
+                                                placeholder="ค้นหา task..."
+                                                className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 w-full transition-all"
+                                            />
+                                            {taskSearchOpen && (
+                                                <div className="absolute z-50 top-full mt-1 w-full bg-[#0d1117] border border-blue-500/30 rounded-lg shadow-xl max-h-44 overflow-y-auto">
+                                                    <div
+                                                        onMouseDown={() => { setCreateVersionForm(p => ({ ...p, task_id: null, task: '' })); setTaskSearchQuery(''); setTaskSearchOpen(false); }}
+                                                        className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 cursor-pointer border-b border-white/5"
+                                                    >
+                                                        <span className="text-xs text-gray-500 italic">— ไม่ระบุ task —</span>
+                                                    </div>
+                                                    {tasks
+                                                        .filter(t =>
+                                                            t.task_name.toLowerCase().includes(taskSearchQuery.toLowerCase()) ||
+                                                            (t.pipeline_step?.step_name || '').toLowerCase().includes(taskSearchQuery.toLowerCase())
+                                                        )
+                                                        .map(task => (
+                                                            <div
+                                                                key={task.id}
+                                                                onMouseDown={() => {
+                                                                    setCreateVersionForm(p => ({ ...p, task_id: task.id, task: task.task_name }));
+                                                                    setTaskSearchQuery('');
+                                                                    setTaskSearchOpen(false);
+                                                                }}
+                                                                className="flex items-center gap-2.5 px-3 py-2 hover:bg-blue-500/15 cursor-pointer"
+                                                            >
+                                                                {task.pipeline_step ? (
+                                                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: task.pipeline_step.color_hex || '#6b7280' }} />
+                                                                ) : (
+                                                                    <span className="text-xs flex-shrink-0">📋</span>
+                                                                )}
+                                                                <span className="text-xs text-gray-200 flex-1 truncate">{task.task_name}</span>
+                                                                {task.pipeline_step && (
+                                                                    <span
+                                                                        className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
+                                                                        style={{
+                                                                            backgroundColor: (task.pipeline_step.color_hex || '#6b7280') + '33',
+                                                                            color: task.pipeline_step.color_hex || '#9ca3af',
+                                                                        }}
+                                                                    >{task.pipeline_step.step_code}</span>
+                                                                )}
+                                                            </div>
+                                                        ))
+                                                    }
+                                                    {tasks.filter(t =>
+                                                        t.task_name.toLowerCase().includes(taskSearchQuery.toLowerCase()) ||
+                                                        (t.pipeline_step?.step_name || '').toLowerCase().includes(taskSearchQuery.toLowerCase())
+                                                    ).length === 0 && taskSearchQuery && (
+                                                            <p className="px-3 py-2 text-xs text-gray-500">ไม่พบ task ที่ตรงกัน</p>
+                                                        )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Link + Project — read-only */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-gray-400 font-medium uppercase tracking-wider">Link</label>
+                                        <div className="h-9 px-3 bg-[#0a1018]/60 border border-blue-500/10 rounded-lg text-gray-500 text-sm flex items-center gap-2 select-none">
+                                            <span className="text-blue-300 font-medium truncate">{shotData?.shotCode}</span>
+                                            <span className="ml-auto text-[10px] text-green-400/80 flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 whitespace-nowrap">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>
+                                                auto-linked
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-gray-400 font-medium uppercase tracking-wider">Project</label>
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={projectData?.projectName || ''}
+                                            className="w-full h-9 px-3 bg-[#0a1018] border border-blue-500/30 rounded-lg text-gray-200 text-sm cursor-default"
+                                        />
+                                    </div>
+                                </div>
+
+
+
+                            </div>
+
+                            {/* Footer — Cancel ซ้าย, Create ขวา */}
+                            <div className="px-6 py-3 bg-gradient-to-r from-[#0a1018] to-[#0d1420] border-t border-blue-500/30 flex justify-between items-center gap-3 ">
+                                <button
+                                    onClick={() => resetVersionForm()}
+                                    disabled={isCreatingVersion}
+                                    className="px-4 h-9 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-700 hover:to-gray-700 text-white text-sm rounded-lg disabled:opacity-50 transition-all flex items-center"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    onClick={handleCreateVersion}
+                                    disabled={isCreatingVersion}
+                                    className="px-5 h-9 bg-gradient-to-r from-[#1e88e5] to-[#1565c0] hover:from-[#1976d2] hover:to-[#0d47a1] text-sm rounded-lg text-white shadow-lg shadow-blue-500/30 transition-all font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isCreatingVersion ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            <span>Creating...</span>
+                                        </>
+                                    ) : (
+                                        'Create Version'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {noteContextMenu && (
+                <div
+                    className="fixed z-[90] bg-gray-800 border border-gray-600 rounded-lg shadow-xl py-1 min-w-[160px]"
+                    style={{
+                        left: noteContextMenu.x,
+                        top: noteContextMenu.y,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        onClick={() => {
+                            if (noteContextMenu) {
+                                setDeleteNoteConfirm({
+                                    noteId: noteContextMenu.note.id,
+                                    subject: noteContextMenu.note.subject,
+                                });
+                            }
+                        }}
+                        className="w-full px-4 py-2 text-left text-red-400 flex items-center gap-2 text-sm bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-700"
+                    >
+                        🗑️ Delete Note
+                    </button>
+                </div>
+            )}
+
+            {versionContextMenu && (
+                <div
+                    className="fixed z-[90] bg-gray-800 border border-gray-600 rounded-lg shadow-xl py-1 min-w-[160px]"
+                    style={{
+                        left: versionContextMenu.x,
+                        top: versionContextMenu.y,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        onClick={() => {
+                            if (versionContextMenu) {
+                                setDeleteVersionConfirm({
+                                    versionId: versionContextMenu.versionId,
+                                    versionName: versionContextMenu.versionName,
+                                });
+                            }
+                        }}
+
+                        className="w-full px-4 py-2 text-left text-red-400 flex items-center gap-2 text-sm bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-700"
+                    >
+                        🗑️ Delete Version
+                    </button>
+                </div>
+            )}
+
+            {deleteNoteConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                        onClick={() => setDeleteNoteConfirm(null)}
+                    />
+
+                    <div
+                        className="relative w-full max-w-md mx-4 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6">
+                            <div className="flex items-start gap-4 mb-6">
+                                <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
+                                    <span className="text-3xl">⚠️</span>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-lg font-semibold text-zinc-100">
+                                        Delete Note
+                                    </h3>
+                                    <p className="text-sm text-zinc-400">
+                                        This action cannot be undone.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="rounded-lg bg-zinc-800 p-4 mb-6 border border-zinc-700">
+                                <p className="text-zinc-300 mb-1">
+                                    Are you sure you want to delete this note?
+                                </p>
+                                <p className="font-semibold text-zinc-100 truncate">
+                                    "{deleteNoteConfirm.subject}"
+                                </p>
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteNoteConfirm(null);
+                                    }}
+                                    className="px-4 py-2 rounded-lg text-zinc-200 transition-colors font-medium bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-600"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setIsDeletingNote(true);
+                                        try {
+                                            await handleDeleteNote(deleteNoteConfirm.noteId);
+
+                                            setDeleteNoteConfirm(null);
+                                            fetchNotes();
+                                        } catch (error) {
+                                            // handle error if needed
+                                        } finally {
+                                            setIsDeletingNote(false);
+                                        }
+                                    }}
+                                    disabled={isDeletingNote}
+                                    className="px-4 py-2 rounded-lg text-white transition-colors font-medium bg-gradient-to-r from-red-800 to-red-800 hover:from-red-700 hover:to-red-600 disabled:opacity-50"
+                                >
+                                    {isDeletingNote ? (
+                                        <div className="flex items-center gap-2">
+                                            <LoaderCircle className="w-4 h-4 animate-spin" />
+                                            Deleting...
+                                        </div>
+                                    ) : (
+                                        'Delete Note'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deleteVersionConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                        onClick={() => setDeleteVersionConfirm(null)}
+                    />
+
+                    <div
+                        className="relative w-full max-w-md mx-4 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6">
+                            <div className="flex items-start gap-4 mb-6">
+                                <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
+                                    <span className="text-3xl">⚠️</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-zinc-100">Delete Version</h3>
+                                    <p className="text-sm text-zinc-400">This action cannot be undone.</p>
+                                </div>
+                            </div>
+
+                            <div className="rounded-lg bg-zinc-800 p-4 mb-6 border border-zinc-700">
+                                <p className="text-zinc-300 mb-1">Are you sure you want to delete this version?</p>
+                                <p className="font-semibold text-zinc-100 truncate">
+                                    "{deleteVersionConfirm.versionName}"
+                                </p>
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteVersionConfirm(null);
+                                    }}
+                                    className="px-4 py-2 rounded-lg text-zinc-200 transition-colors font-medium bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-600"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setIsDeletingVersion(true);
+                                        try {
+                                            const res = await axios.delete(
+                                                `${ENDPOINTS.DELETE_SHOT_VERSION}/${deleteVersionConfirm.versionId}`,
+                                                { data: { entityId: shotData?.id } }
+                                            );
+                                            removeVersionFromState(deleteVersionConfirm.versionId);
+                                            const newThumb = res.data.newThumbnail;
+                                            if (newThumb) {
+                                                setShotData(prev =>
+                                                    (prev ? { ...prev, thumbnail: newThumb } : prev) as ShotData
+                                                );
+                                                const stored = JSON.parse(localStorage.getItem('selectedShot') || '{}');
+                                                localStorage.setItem('selectedShot', JSON.stringify({ ...stored, file_url: newThumb, thumbnail: newThumb }));
+                                            } else {
+                                                // ถ้าไม่มี newThumbnail = ลบหมดแล้ว → clear thumbnail
+                                                setShotData(prev =>
+                                                    (prev ? { ...prev, thumbnail: '' } : prev) as ShotData
+                                                );
+                                                const stored = JSON.parse(localStorage.getItem('selectedShot') || '{}');
+                                                localStorage.setItem('selectedShot', JSON.stringify({ ...stored, file_url: '', thumbnail: '' }));
+                                            }
+                                            setDeleteVersionConfirm(null);
+                                        } catch {
+                                            alert('ไม่สามารถลบได้');
+                                        } finally {
+                                            setIsDeletingVersion(false);
+                                        }
+                                    }}
+                                    disabled={isDeletingVersion}
+                                    className="px-4 py-2 rounded-lg text-white transition-colors font-medium bg-gradient-to-r from-red-800 to-red-800 hover:from-red-700 hover:to-red-600 disabled:opacity-50"
+                                >
+                                    {isDeletingVersion ? (
+                                        <div className="flex items-center gap-2">
+                                            <LoaderCircle className="w-4 h-4 animate-spin" />
+                                            Deleting...
+                                        </div>
+                                    ) : (
+                                        'Delete Version'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Right Panel - Floating Card */}
+            <RightPanel
+                selectedTask={selectedTask}
+                isPanelOpen={isPanelOpen}
+                rightPanelWidth={rightPanelWidth}
+                activeTab={rightPanelActiveTab}
+                taskVersions={taskVersions}
+                isLoadingVersions={isLoadingVersions}
+                projectUsers={allPeople.map(p => ({ id: p.id, username: p.name }))}
+                onClose={() => {
+                    setIsPanelOpen(false);
+                    setTimeout(() => setSelectedTask(null), 300);
+                }}
+                onResize={handleMouseDown}
+                onTabChange={setRightPanelActiveTab}
+                onUpdateVersion={updateVersion}
+                onAddVersionSuccess={async () => {
+                    if (selectedTask) await fetchTaskVersions(selectedTask.id);
+                    // re-fetch shot versions เพื่ออัพเดท thumbnail
+                    await fetchShotVersions();
+                }}
+                onDeleteVersionSuccess={async (newThumb) => {
+                    if (selectedTask) await fetchTaskVersions(selectedTask.id);
+                    await fetchShotVersions();
+                    if (newThumb !== undefined) {
+                        const url = newThumb || '';
+                        setShotData(prev => prev ? { ...prev, thumbnail: url } : prev);
+                        const stored = JSON.parse(localStorage.getItem('selectedShot') || '{}');
+                        localStorage.setItem('selectedShot', JSON.stringify({ ...stored, file_url: url, thumbnail: url }));
+                    }
+                }}
+            />
+
+            {selectedNote && (
+                <RightPanelNote
+                    selectedNote={selectedNote}
+                    isPanelOpen={isNotePanelOpen}
+                    rightPanelWidth={rightPanelWidth}
+                    entityName={shotData.shotCode}
+                    entityLabel="Shot"
+                    onClose={() => {
+                        setIsNotePanelOpen(false);
+                        setTimeout(() => setSelectedNote(null), 300);
+                    }}
+                    onResize={handleMouseDown}
+                />
+            )}
+
+
+        </div>
+    );
+}
+
+const InfoRow = ({ label, value }: { label: string; value: string }) => (
+    <div>
+        <p className="text-sm text-gray-400">{label}</p>
+        <p className="text-gray-200">{value}</p>
+    </div>
+);

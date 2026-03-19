@@ -1,0 +1,2862 @@
+/* eslint-disable no-empty */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect, } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Navbar_Project from "../../../components/Navbar_Project";
+import ENDPOINTS from '../../../config';
+import axios from 'axios';
+import { Check, Eye, Image, Upload, X, LoaderCircle, ChevronDown } from 'lucide-react';
+import TaskTab from "../../../components/TaskTab";
+import NoteTab from "../../../components/NoteTab";
+import RightPanel from "../../../components/RightPanel";
+import VersionTab from "../../../components/VersionTab";
+import ShotAssetTab from "../../../components/Shot_AssetTab";
+import RightPanelNote from "../../../components/RightPanelNote";
+
+//============================================================================================================================================//
+
+const statusConfig = {
+    wtg: { label: 'wtg', fullLabel: 'Waiting to Start', color: 'bg-gray-600', icon: '-' },
+    ip: { label: 'ip', fullLabel: 'In Progress', color: 'bg-blue-500', icon: 'dot' },
+    fin: { label: 'fin', fullLabel: 'Final', color: 'bg-green-500', icon: 'dot' },
+    hld: { label: 'hld', fullLabel: 'On Hold', color: 'bg-orange-600', icon: 'dot' },
+    pndng: { label: 'pndng', fullLabel: 'Pending', color: 'bg-yellow-400', icon: 'dot' },
+    recd: { label: 'recd', fullLabel: 'Received', color: 'bg-blue-400', icon: 'dot' },
+    rts: { label: 'rts', fullLabel: 'Ready to Start', color: 'bg-orange-500', icon: 'dot' },
+    cmpt: { label: 'cmpt', fullLabel: 'Complete', color: 'bg-blue-600', icon: 'dot' },
+};
+
+type StatusType = keyof typeof statusConfig;
+type NoteType = 'Client' | 'Internal';
+
+interface Note {
+    id: number;
+    project_id: number;
+    note_type: string;
+    type_id: number;
+    subject: string;
+    body: string;
+    file_url?: string;
+    author: string;
+    status: string;
+    visibility: string;
+    created_at: string;
+    tasks?: string[];
+    assigned_people?: string[];
+}
+
+interface Version {
+    id: number;
+    entity_type: string;
+    entity_id: number;
+    version_number: number;
+    version_name?: string;
+    status: string;
+    file_url?: string;
+    description?: string;
+    uploaded_by?: string;
+    uploaded_by_name?: string;
+    created_at: string;
+    task_name?: string;
+}
+
+interface AssetData {
+    id: number;
+    asset_name: string;
+    shotCode: string;
+    description: string;
+    status: StatusType;
+    thumbnail: string;
+    sequence: string;
+    type: string;
+    tags?: string[];
+    dueDate?: string;
+}
+
+type Task = {
+    id: number;
+    project_id: number;
+    entity_type: string;
+    entity_id: number;
+    task_name: string;
+    status: string;
+    start_date: string;
+    due_date: string;
+    created_at: string;
+    description: string;
+    file_url: string;
+    assignees: TaskAssignee[];
+    reviewers: TaskReviewer[];
+    pipeline_step: PipelineStep | null;
+};
+
+interface Person {
+    id: number;
+    name: string;
+    email: string;
+    status?: string;
+    permissionGroup?: string;
+    projects?: string;
+    groups?: string;
+    createdAt?: string;
+}
+
+type TaskReviewer = {
+    id: number;
+    username: string;
+};
+
+type PipelineStep = {
+    id: number;
+    step_name: string;
+    step_code: string;
+    color_hex: string;
+    entity_type?: 'shot' | 'asset';
+};
+
+type TaskAssignee = {
+    id: number;
+    username: string;
+};
+
+//============================================================================================================================================//
+
+const assetFieldMap: Record<keyof AssetData, string | null> = {
+    id: null,
+    asset_name: "asset_name",
+    shotCode: "shot_name",
+    sequence: null,          // ← sequence เป็น read-only ไม่ได้ update ตรงๆ
+    type: "type",            // ← เพิ่ม
+    status: "status",
+    tags: null,
+    thumbnail: "thumbnail",
+    description: "description",
+    dueDate: "due_date"
+};
+
+const type_assets = [
+    "Character", "Environment", "Prop", "FX", "Graphic",
+    "Matte Painting", "Vehicle", "Weapon", "Model", "Theme", "Zone", "Part"
+];
+
+const getSelectedAsset = (): AssetData | null => {
+    try {
+        const selectedAssetString = localStorage.getItem("selectedAsset");
+        if (!selectedAssetString) return null;
+        const data = JSON.parse(selectedAssetString);
+        return {
+            id: data.id,
+            asset_name: data.asset_name || '',
+            description: data.description || '',
+            status: data.status || 'wtg',
+            thumbnail: data.file_url || '',
+            sequence: data.sequence_name || data.sequence || '',  // ← sequence name
+            type: data.type || '',                                 // ← asset type
+            shotCode: data.shot_name || ''
+        };
+    } catch (error) {
+        console.error("Error parsing selectedAsset:", error);
+        return null;
+    }
+};
+
+export default function Others_Asset() {
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState('Asset Info');
+    const [assetData, setAssetData] = useState<AssetData | null>(null);
+    const [showStatusMenu, setShowStatusMenu] = useState(false);
+    const [showCreateAsset_Task, setShowCreateAsset_Task] = useState(false);
+    const [showCreateAsset_Note, setShowCreateAsset_Note] = useState(false);
+    const [selectedUploader, setSelectedUploader] = useState<Person | null>(null);
+    const [uploaderQuery, setUploaderQuery] = useState('');
+    const [uploaderOpen, setUploaderOpen] = useState(false);
+    const [taskSearchQuery, setTaskSearchQuery] = useState('');
+    const [taskSearchOpen, setTaskSearchOpen] = useState(false);
+    const [editingField, setEditingField] = useState<string | null>(null);
+    const [showPreview, setShowPreview] = useState(false);
+    const [noteModalPosition, setNoteModalPosition] = useState({ x: 0, y: 0 });
+    const [type, setType] = useState<NoteType | null>(null);
+    const [body, setBody] = useState('');
+    const [notes, setNotes] = useState<Note[]>([]);
+    const [loadingNotes, setLoadingNotes] = useState(false);
+    const [taskVersions, setTaskVersions] = useState<any[]>([]);
+    const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+    const [rightPanelActiveTab, setRightPanelActiveTab] = useState('notes');
+    const [assetVersions, setAssetVersions] = useState<any[]>([]);
+    const [isLoadingAssetVersions, setIsLoadingAssetVersions] = useState(false);
+    const currentUser = localStorage.getItem('currentUser') || 'Manager';
+    const [selectedPeople, setSelectedPeople] = useState<Person[]>([]);
+    const [query, setQuery] = useState('');
+    const [open, setOpen] = useState(false);
+    const [allPeople, setAllPeople] = useState<Person[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [files, setFiles] = useState<File[]>([]);
+    const [uploading, setUploading] = useState(false);
+    const [, setSelectedFile] = useState<File | null>(null);
+    const [openAssignedDropdown, setOpenAssignedDropdown] = useState<string | number | null>(null);
+    const [modalTasks, setModalTasks] = useState<{ id: number; task_name: string; pipeline_step_name: string | null }[]>([]);
+    const [loadingModalTasks, setLoadingModalTasks] = useState(false);
+    const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
+    // `setSelectedNote` is intentionally unused for now (kept for future use)
+    const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+    const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
+
+    const AssetID = JSON.parse(localStorage.getItem("selectedAsset") || "{}").id;
+    const projectData = JSON.parse(localStorage.getItem("projectData") || "null");
+    const projectId = projectData?.projectId;
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [isResizing, setIsResizing] = useState(false);
+    const [rightPanelWidth, setRightPanelWidth] = useState(600);
+    const [,] = useState<Version | null>(null);
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [versionModalPosition, setVersionModalPosition] = useState({ x: 0, y: 0 });
+    const [showCreateVersion, setShowCreateVersion] = useState(false);
+    const [isCreatingVersion, setIsCreatingVersion] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [versionFiles, setVersionFiles] = useState<File[]>([]);
+    const [versionFilePreviews, setVersionFilePreviews] = useState<string[]>([]);
+    const [isCreatingTask, setIsCreatingTask] = useState(false);
+    const [versionNameFromFile, setVersionNameFromFile] = useState<number | null>(null);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const [subject, setSubject] = useState(assetData?.asset_name ? `Note on ${assetData.asset_name}` : "");
+    const [loadingTasks, setLoadingTasks] = useState(false);
+
+
+    const [showAddShot, setShowAddShot] = useState(false);
+
+    const [createShotForm, setCreateShotForm] = useState({
+        shot_name: '',
+        description: '',
+        status: 'wtg',
+    });
+    const [isCreatingShot, setIsCreatingShot] = useState(false);
+
+    // ── createVersionForm: เพิ่ม task_id เพื่อเก็บ id ของ task ที่เลือก ──
+    const [createVersionForm, setCreateVersionForm] = useState({
+        version_name: '',
+        status: 'wtg',
+        description: '',
+        link: '',
+        task: '',
+        task_id: null as number | null,
+    });
+
+    const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+    const [isThumbnailLocked, setIsThumbnailLocked] = useState(false);
+    const thumbnailDisabled = isCreatingVersion || isUploadingThumbnail || isThumbnailLocked || isLoadingAssetVersions;
+    const [linkedShots, setLinkedShots] = useState<any[]>([]);
+    const [loadingLinkedShots, setLoadingLinkedShots] = useState(false);
+
+
+    //============================================================================================================================================//
+
+
+
+    const [createTaskForm, setCreateTaskForm] = useState({
+        task_name: '',
+        status: 'wtg',
+        start_date: '',
+        due_date: '',
+        description: '',
+        file_url: '',
+    });
+
+    //============================================================================================================================================//
+
+    const [noteContextMenu, setNoteContextMenu] = useState<{
+        visible: boolean;
+        x: number;
+        y: number;
+        note: Note;
+    } | null>(null);
+
+    const [versionContextMenu, setVersionContextMenu] = useState<{
+        visible: boolean;
+        x: number;
+        y: number;
+        versionId: number;
+        versionName: string;
+    } | null>(null);
+
+    const [deleteVersionConfirm, setDeleteVersionConfirm] = useState<{
+        versionId: number;
+        versionName: string;
+    } | null>(null);
+
+    const [deleteNoteConfirm, setDeleteNoteConfirm] = useState<{
+        noteId: number;
+        subject: string;
+    } | null>(null);
+
+    const [isDeletingNote, setIsDeletingNote] = useState(false);
+    const [isDeletingVersion, setIsDeletingVersion] = useState(false);
+
+    //============================================================================================================================================//
+
+
+    useEffect(() => {
+        if (activeTab === 'Versions') {
+            fetchAssetVersions();
+        }
+    }, [activeTab, assetData?.id]);
+
+    useEffect(() => {
+        if (activeTab === 'Notes') {
+            fetchNotes();
+        }
+    }, [activeTab, assetData?.id]);
+
+    useEffect(() => {
+        if (deleteVersionConfirm) {
+            setVersionContextMenu(null);
+        }
+    }, [deleteVersionConfirm]);
+
+    useEffect(() => {
+        if (activeTab !== 'Shots' || !AssetID) return;
+
+        const fetchLinkedShots = async () => {
+            setLoadingLinkedShots(true);
+            try {
+                const res = await axios.post(ENDPOINTS.GET_ASSET_SHOTS_JOIN, { assetId: AssetID });
+                setLinkedShots(res.data);
+            } catch (err) {
+                setLinkedShots([]);
+            } finally {
+                setLoadingLinkedShots(false);
+            }
+        };
+
+        fetchLinkedShots();
+    }, [activeTab, AssetID]);
+
+
+    useEffect(() => {
+        if (!AssetID) return;
+
+        const fetchAll = async () => {
+            try {
+                const res = await axios.post(ENDPOINTS.PROJECT_ASSET_DETAIL, {
+                    assetId: AssetID
+                });
+
+                if (res.data && res.data.length > 0) {
+                    const row = res.data[0];
+                    setAssetData({
+                        id: row.asset_id,
+                        asset_name: row.asset_name,
+                        description: row.asset_description || '',
+                        status: row.asset_status || 'wtg',
+                        thumbnail: row.asset_thumbnail || '',
+                        sequence: row.sequence_name || '',
+                        type: row.asset_type || '',
+                        shotCode: row.shot_name || ''
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to fetch asset data:', err);
+                const fallback = getSelectedAsset();
+                if (fallback) setAssetData(fallback);
+            }
+
+            await fetchAssetVersions();
+        };
+
+        fetchAll();
+    }, [AssetID]);
+
+    useEffect(() => {
+        if (assetData?.asset_name) {
+            setSubject(`Note on ${assetData.asset_name}`);
+        }
+    }, [assetData?.asset_name]);
+
+    useEffect(() => {
+        if (!showCreateAsset_Note || !AssetID || !projectId) return;
+
+        const fetchModalTasks = async () => {
+            setLoadingModalTasks(true);
+            try {
+                const res = await fetch(
+                    `${ENDPOINTS.GET_NOTE_TASKS}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        entity_type: 'asset',
+                        entity_id: AssetID,
+                        project_id: projectId
+                    })
+                }
+                );
+                const data = await res.json();
+                setModalTasks(Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.error('[fetchModalTasks]', err);
+                setModalTasks([]);
+            } finally {
+                setLoadingModalTasks(false);
+            }
+        };
+
+        fetchModalTasks();
+    }, [showCreateAsset_Note, AssetID, projectId]);
+
+    useEffect(() => {
+        const closeMenu = () => setVersionContextMenu(null);
+        if (versionContextMenu) {
+            document.addEventListener("click", closeMenu);
+            return () => document.removeEventListener("click", closeMenu);
+        }
+    }, [versionContextMenu]);
+
+    useEffect(() => {
+        const fetchPeople = async () => {
+            try {
+                const response = await fetch(ENDPOINTS.GETALLPEOPLE);
+                const data = await response.json();
+                setAllPeople(data);
+            } catch (error) {
+                console.error('Error fetching people:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPeople();
+    }, []);
+
+    useEffect(() => {
+        const closeMenu = () => setNoteContextMenu(null);
+
+        if (noteContextMenu) {
+            document.addEventListener("click", closeMenu);
+            return () => document.removeEventListener("click", closeMenu);
+        }
+    }, [noteContextMenu]);
+
+
+    useEffect(() => {
+        if (deleteNoteConfirm) {
+            setNoteContextMenu(null);
+        }
+    }, [deleteNoteConfirm]);
+
+    useEffect(() => {
+
+        console.log("🔍 AssetID:", AssetID);
+        console.log("🔍 projectId:", projectId);
+
+        if (!AssetID || !projectId) {
+            console.warn("⚠️ Missing AssetID or projectId");
+            return;
+        }
+        setLoadingTasks(true); // ⭐ เพิ่ม
+        axios.post<Task[]>(ENDPOINTS.SEQUENCE_TASK, {
+            project_id: projectId,
+            entity_type: "asset",
+            entity_id: AssetID
+        })
+            .then(res => {
+                console.log("✅ Tasks received:", res.data);
+                setTasks(res.data);
+            })
+            .catch(err => {
+                console.error("❌ โหลด task ไม่สำเร็จ", err);
+            })
+            .finally(() => {
+                setLoadingTasks(false); // ⭐ เพิ่ม
+            });
+    }, [AssetID, projectId]);
+
+    useEffect(() => {
+        if (selectedTask) {
+            setIsPanelOpen(false);
+            const t = setTimeout(() => {
+                setIsPanelOpen(true);
+                fetchTaskVersions(selectedTask.id);
+            }, 10);
+            return () => clearTimeout(t);
+        }
+    }, [selectedTask]);
+
+    //============================================================================================================================================//
+
+    const handleFiletaskChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files) return;
+        const selected = Array.from(e.target.files);
+        setFiles((prev) => [...prev, ...selected]);
+
+        e.target.value = '';
+    };
+
+    const handleVersionFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setVersionFiles(prev => [...prev, ...files]);
+        setVersionFilePreviews(prev => [
+            ...prev,
+            ...files.map(f => f.type.startsWith('image/') ? URL.createObjectURL(f) : '')
+        ]);
+        // ตั้งชื่อตามไฟล์แรกที่เลือก (ถ้ายังไม่มี)
+        setCreateVersionForm(p => ({
+            ...p,
+            version_name: p.version_name || files[0].name.replace(/\.[^/.]+$/, '')
+        }));
+    };
+
+    const removetaskFile = (index: number) => {
+        setFiles(files.filter((_, i) => i !== index));
+    };
+
+    const fetchNotes = async () => {
+        if (!assetData?.id) return;
+
+        setLoadingNotes(true);
+        try {
+            const response = await fetch(`${ENDPOINTS.GET_NOTES}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    projectId: localStorage.getItem("projectId"),
+                    noteType: 'asset',
+                    typeId: assetData.id
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            setNotes(data);
+        } catch (error) {
+            console.error('Error fetching notes:', error);
+            setNotes([]);
+        } finally {
+            setLoadingNotes(false);
+        }
+    };
+
+    const handleDeleteNote = async (noteId: number) => {
+        try {
+            const response = await axios.delete(`${ENDPOINTS.DELETE_NOTE}/${noteId}`);
+
+            if (response.status !== 200 && response.status !== 204) {
+                throw new Error(`Delete failed with status ${response.status}`);
+            }
+
+            // close context menu
+            setNoteContextMenu(null);
+
+            // optimistic update
+            setNotes(prevNotes => prevNotes.filter(note => note.id !== noteId));
+
+        } catch (err) {
+            console.error("❌ DELETE FAILED:", err);
+            alert(err instanceof Error ? err.message : "Failed to delete note");
+            fetchNotes();
+        }
+    };
+
+    const handleNoteContextMenu = (
+        e: React.MouseEvent,
+        note: Note
+    ) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        setNoteContextMenu({
+            visible: true,
+            x: e.clientX,
+            y: e.clientY,
+            note
+        });
+    };
+
+    const handleStatusClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowStatusMenu(!showStatusMenu);
+    };
+
+    const handleStatusChange = async (newStatus: StatusType) => {
+        if (!assetData) return;
+
+        const previousStatus = assetData.status;
+
+        setAssetData(prev => prev ? { ...prev, status: newStatus } : null);
+        setShowStatusMenu(false);
+
+        const selectedAssetString = localStorage.getItem("selectedAsset");
+        if (selectedAssetString) {
+            const selectedAsset = JSON.parse(selectedAssetString);
+            selectedAsset.status = newStatus;
+            localStorage.setItem("selectedAsset", JSON.stringify(selectedAsset));
+        }
+
+        try {
+            await axios.post(ENDPOINTS.UPDATEASSET, {
+                assetId: assetData.id,
+                field: 'status',
+                value: newStatus
+            });
+            console.log(`✅ Updated status to ${newStatus} for asset ${assetData.id}`);
+        } catch (error) {
+            console.error('❌ Error updating status:', error);
+            alert('Failed to update status');
+            setAssetData(prev => prev ? { ...prev, status: previousStatus } : null);
+        }
+    };
+
+    const handleCreateNote = async () => {
+        if (!subject.trim() || !type || !body.trim()) {
+            alert('กรุณากรอก Subject, Type และ Message ก่อนสร้าง');
+            return;
+        }
+
+        try {
+            setUploading(true);
+
+            let uploadedFileUrls: string[] = [];
+
+            if (files.length > 0) {
+                const formData = new FormData();
+                files.forEach((file) => formData.append('file', file));
+                formData.append('assetId', assetData?.id.toString() || '');
+                formData.append('type', 'note');
+
+                const uploadResponse = await fetch(ENDPOINTS.UPLOAD_ASSET, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!uploadResponse.ok) throw new Error('File upload failed');
+
+                const uploadData = await uploadResponse.json();
+                uploadedFileUrls = uploadData.files?.map((f: any) => f.fileUrl).filter(Boolean) ?? [];
+            }
+
+            const noteData = {
+                projectId: projectId ?? null,
+                noteType: 'asset',
+                typeId: assetData?.id ?? null,
+                subject: subject || '',
+                body: body || '',
+                fileUrl: uploadedFileUrls.length > 1
+                    ? JSON.stringify(uploadedFileUrls)
+                    : (uploadedFileUrls[0] ?? null),
+                author: currentUser,
+                status: 'opn',
+                visibility: type ?? null,
+                tasks: selectedTasks.length > 0 ? selectedTasks : null,
+                assignedPeople: selectedPeople?.length > 0
+                    ? selectedPeople.map((person: Person) => person.id)
+                    : null,
+            };
+
+            const createResponse = await fetch(ENDPOINTS.CREATE_ASSET_NOTE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(noteData),
+            });
+
+            if (!createResponse.ok) {
+                const errorData = await createResponse.json();
+                throw new Error('Failed to create note: ' + JSON.stringify(errorData));
+            }
+
+            setShowCreateAsset_Note(false);
+            setSelectedFile(null);
+            setSelectedPeople([]);
+            setSelectedTasks([]);
+            setFiles([]);
+            setSubject(assetData?.asset_name ? `Note on ${assetData.asset_name}` : '');
+            setBody('');
+            setType(null);
+
+            fetchNotes();
+
+        } catch (error) {
+            console.error('Error creating note:', error);
+            alert('Failed to create note. Please try again.');
+        } finally {
+            setUploading(false);
+        }
+    };
+    const filteredPeople = allPeople.filter(
+        (person: Person) =>
+            person.name.toLowerCase().includes(query.toLowerCase()) &&
+            !selectedPeople.some((selected: Person) => selected.id === person.id)
+    );
+
+    const addPerson = (person: Person) => {
+        setSelectedPeople([...selectedPeople, person]);
+        setQuery('');
+        setOpen(false);
+    };
+
+    const removePerson = (personId: number) => {
+        setSelectedPeople(selectedPeople.filter((person: Person) => person.id !== personId));
+    };
+
+    const handleClickOutside = () => {
+        if (showStatusMenu) setShowStatusMenu(false);
+    };
+
+
+    const updateAssetField = async (
+        field: keyof AssetData,
+        value: any
+    ) => {
+        if (!assetData) {
+            console.warn(`⚠️ Asset data is not loaded`);
+            return;
+        }
+
+        const dbField = assetFieldMap[field];
+
+        if (!dbField) {
+            console.warn(`⚠️ Field "${field}" cannot be updated`);
+            return;
+        }
+
+        try {
+            await axios.post(ENDPOINTS.UPDATEASSET, {
+                assetId: assetData.id,
+                field: dbField,
+                value
+            });
+
+            setAssetData(prev => prev ? { ...prev, [field]: value } : null);
+
+        } catch (err) {
+            console.error("❌ update asset failed:", err);
+            alert("Update failed");
+        }
+    };
+
+    const removeVersionFile = (index: number) => {
+        const newFiles = versionFiles.filter((_, i) => i !== index);
+        const newPreviews = versionFilePreviews.filter((_, i) => i !== index);
+
+        setVersionFiles(newFiles);
+        setVersionFilePreviews(newPreviews);
+
+        // ถ้าลบไฟล์ที่เป็นต้นทางของ version_name → reset name ด้วย
+        if (versionNameFromFile === index) {
+            setCreateVersionForm(p => ({ ...p, version_name: '' }));
+            setVersionNameFromFile(null);
+        } else if (versionNameFromFile !== null && index < versionNameFromFile) {
+            setVersionNameFromFile(prev => prev !== null ? prev - 1 : null);
+        }
+    };
+
+    const resetVersionForm = () => {
+        setShowCreateVersion(false);
+        setCreateVersionForm({
+            version_name: '',
+            status: 'wtg',
+            description: '',
+            link: '',
+            task: '',
+            task_id: null,   // ← reset task_id ด้วย
+        });
+        setVersionFiles([]);
+        setVersionFilePreviews([]);
+        setVersionNameFromFile(null);
+        setSelectedUploader(null);
+        setUploaderQuery('');
+        setTaskSearchQuery('');
+        setTaskSearchOpen(false);
+        setVersionModalPosition({ x: 0, y: 0 });
+    };
+
+    const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        setIsResizing(true);
+        e.preventDefault();
+    };
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (isResizing) {
+            const newWidth = window.innerWidth - e.clientX;
+            if (newWidth >= 400 && newWidth <= 1000) {
+                setRightPanelWidth(newWidth);
+            }
+        }
+    };
+
+    const handleVersionFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault(); setIsDragging(false);
+
+        const files = Array.from(e.dataTransfer.files || []);
+        if (!files.length) return;
+        setVersionFiles(prev => [...prev, ...files]);
+        setVersionFilePreviews(prev => [
+            ...prev,
+            ...files.map(f => f.type.startsWith('image/') ? URL.createObjectURL(f) : '')
+        ]);
+        setCreateVersionForm(p => ({
+            ...p,
+            version_name: p.version_name || files[0].name.replace(/\.[^/.]+$/, '')
+        }));
+    };
+
+
+    const formatDate = (dateStr: string) => {
+        if (!dateStr) return "-";
+
+        return new Date(dateStr).toLocaleString("th-TH", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+    };
+    const updateVersion = async (versionId: number, field: string, value: any) => {
+        try {
+            await axios.post(`${ENDPOINTS.UPDATE_VERSION}`, {
+                versionId,
+                field,
+                value
+            });
+
+            setTaskVersions(prev =>
+                prev.map(v => {
+                    if (v.id === versionId) {
+                        if (field === 'uploaded_by') {
+                            const user = allPeople.find(p => p.id === value);
+                            return {
+                                ...v,
+                                uploaded_by: value,
+                                uploaded_by_name: user?.name
+                            };
+                        }
+                        return { ...v, [field]: value };
+                    }
+                    return v;
+                })
+            );
+
+            // รีเฟรชจาก server เพื่อให้ข้อมูลล่าสุด
+            if (selectedTask) {
+                await fetchTaskVersions(selectedTask.id);
+            }
+
+            return true;
+        } catch (err) {
+            console.error('Update version error:', err);
+            alert('ไม่สามารถอัปเดทข้อมูลได้');
+            return false;
+        }
+    };
+
+    const handleCreateVersion = async () => {
+        if (isCreatingVersion) return;
+        if (!createVersionForm.version_name.trim()) {
+            alert('กรุณาระบุชื่อ Version'); return;
+        }
+        if (!selectedUploader) {
+            alert('กรุณาระบุชื่อผู้อัพโหลด'); return;
+        }
+        setIsCreatingVersion(true);
+        try {
+            if (versionFiles.length === 0) {
+                // ไม่มีไฟล์ — สร้าง 1 version เปล่า
+                await createSingleVersion(null);
+            } else {
+                // มีไฟล์ — สร้างทีละไฟล์
+                for (let i = 0; i < versionFiles.length; i++) {
+                    const file = versionFiles[i];
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('assetId', assetData?.id.toString() || '');
+                    formData.append('fileName', file.name);
+                    formData.append('type', 'version');
+
+                    const uploadRes = await fetch(ENDPOINTS.UPLOAD_ASSET, { method: 'POST', body: formData });
+                    if (!uploadRes.ok) throw new Error(`Upload failed: ${file.name}`);
+                    const uploadData = await uploadRes.json();
+                    const fileUrl = uploadData.file.fileUrl;
+                    const file_id = uploadData.file.id;
+
+                    localStorage.setItem("file_id", file_id);
+
+                    // ชื่อ version — ไฟล์แรกใช้ชื่อที่กรอก ที่เหลือใช้ชื่อไฟล์
+                    const vName = i === 0
+                        ? createVersionForm.version_name.trim()
+                        : file.name.replace(/\.[^/.]+$/, '');
+
+                    await createSingleVersion(fileUrl, vName);
+
+                    // set thumbnail จากไฟล์สุดท้าย
+                    if (i === versionFiles.length - 1) {
+                        setAssetData(prev => prev ? { ...prev, thumbnail: fileUrl } : null);
+
+                        const currentStored = JSON.parse(localStorage.getItem('selectedAsset') || '{}');
+                        localStorage.setItem('selectedAsset', JSON.stringify({
+                            ...currentStored,
+                            file_url: fileUrl,
+                            thumbnail: fileUrl
+                        }));
+                    }
+
+                }
+            }
+
+            alert(`สร้าง ${versionFiles.length || 1} Version สำเร็จ!`);
+            setShowCreateVersion(false);
+            setCreateVersionForm({ version_name: '', status: 'wtg', description: '', link: '', task: '', task_id: null });
+            setVersionFiles([]);
+            setVersionFilePreviews([]);
+            fetchAssetVersions();
+            setSelectedUploader(null);
+            setUploaderQuery('');
+
+        } catch (error: any) {
+            console.error('Error creating version:', error);
+            alert('Failed to create version. Please try again.');
+        } finally {
+            setIsCreatingVersion(false);
+        }
+    };
+
+    // ── createSingleVersion: รับ task_id เพิ่มเพื่อส่งไป API ──
+    const createSingleVersion = async (
+        fileUrl: string | null,
+        versionName?: string,
+        formSnapshot?: typeof createVersionForm,  // ← รับ snapshot
+        fileId?: string | null                    // ← รับ file_id ตรงๆ ไม่ใช้ localStorage
+    ) => {
+        const form = formSnapshot ?? createVersionForm; // fallback ถ้าไม่ส่งมา
+
+        const res = await fetch(ENDPOINTS.CREATE_ASSET_VERSION, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                entityType: 'asset',
+                entityId: assetData?.id,
+                version_name: versionName || form.version_name.trim(),
+                status: form.status,
+                description: form.description || null,
+                link: form.link || null,
+                task: form.task || null,
+                task_id: form.task_id ?? null,   // ✅ ใช้ ?? แทน ||
+                file_url: fileUrl,
+                file_id: fileId ?? localStorage.getItem("file_id"), // ✅ ใช้ param ก่อน fallback
+                uploaded_by: selectedUploader?.id ?? null,
+            })
+        });
+        if (!res.ok) throw new Error('Create version failed');
+    };
+
+    const handleFormChange = (field: string, value: any) => {
+        setCreateTaskForm(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    const fetchAssetVersions = async () => {
+        if (!AssetID) return;
+        setIsLoadingAssetVersions(true);
+        try {
+            const res = await axios.post(`${ENDPOINTS.GET_ASSET_VERSION}`, {
+                entityType: 'asset',
+                entityId: AssetID
+            });
+            const data = res.data;
+
+            if (Array.isArray(data) && data.length > 0) {
+                setAssetVersions(data);
+                setIsThumbnailLocked(true);
+
+                // ✅ sync thumbnail จาก version ล่าสุดเท่านั้น ไม่ clear ถ้าไม่มี
+                const latestThumb = data[0]?.file_url;
+                if (latestThumb) {
+                    setAssetData(prev => prev ? { ...prev, thumbnail: latestThumb } : null);
+                }
+                // ❌ ลบ block else ที่ clear thumbnail ออก
+            } else {
+                setAssetVersions([]);
+                setIsThumbnailLocked(false);
+                // ❌ ไม่ clear thumbnail เลย ให้ fetchAssetData จัดการเอง
+            }
+        } finally {
+            setIsLoadingAssetVersions(false);
+        }
+    };
+
+    // เพิ่มหลัง fetchAssetVersions
+    const removeVersionFromState = (versionId: number) => {
+        setAssetVersions(prev => {
+            const updated = prev.filter(v => v.id !== versionId);
+            setIsThumbnailLocked(updated.length >= 1);
+            return updated;
+        });
+    };
+
+    const handleCreateTask = async () => {
+        if (isCreatingTask) return;
+
+        try {
+            if (!createTaskForm.task_name.trim()) {
+                alert("กรุณากระบุชื่องาน");
+                return;
+            }
+
+            setIsCreatingTask(true);
+
+            const payload = {
+                project_id: projectId,
+                task_name: createTaskForm.task_name.trim(),
+                entity_type: 'asset',
+                entity_id: AssetID,
+                status: createTaskForm.status || 'wtg',
+                start_date: createTaskForm.start_date || null,
+                due_date: createTaskForm.due_date || null,
+                description: createTaskForm.description || null,
+                file_url: createTaskForm.file_url || null,
+                pipeline_step_id: null
+            };
+
+            // สร้าง task
+            await axios.post(`${ENDPOINTS.ADD_TASK}`, payload);
+
+            // รีเฟรช tasks
+            const tasksRes = await axios.post(ENDPOINTS.SEQUENCE_TASK, {
+                project_id: projectId,
+                entity_type: "asset",
+                entity_id: AssetID
+            });
+            setTasks(tasksRes.data);
+
+            // รีเซ็ต form
+            setCreateTaskForm({
+                task_name: '',
+                status: 'wtg',
+                start_date: '',
+                due_date: '',
+                description: '',
+                file_url: ''
+            });
+            setShowCreateAsset_Task(false);
+
+
+        } catch (err: any) {
+            console.error("Create task error:", err);
+            alert(err.response?.data?.message || "ไม่สามารถสร้างงานได้");
+        } finally {
+            setIsCreatingTask(false);
+        }
+    };
+
+    const fetchTaskVersions = async (taskId: number) => {
+        setIsLoadingVersions(true);
+        try {
+            const res = await axios.post(`${ENDPOINTS.TASK_VERSIONS}`, {
+                entityType: 'task',
+                entityId: taskId
+            });
+            setTaskVersions(res.data);
+        } catch (err) {
+            console.error("Failed to fetch versions:", err);
+            setTaskVersions([]);
+        } finally {
+            setIsLoadingVersions(false);
+        }
+    };
+
+    const renderTabContent = () => {
+        switch (activeTab) {
+
+            case 'Asset Info':
+                return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InfoRow label="Asset Name" value={assetData?.asset_name || '-'} />
+                        <InfoRow label="Status" value={assetData?.status ? statusConfig[assetData.status].label : '-'} />
+                        <InfoRow label="Type" value={assetData?.type || '-'} />           {/* ← เพิ่ม */}
+                        <InfoRow label="Sequence" value={assetData?.sequence || '-'} />   {/* ← เพิ่ม */}
+                        <InfoRow label="Due Date" value={formatDate(assetData?.dueDate || '')} />
+                        <div className="md:col-span-2">
+                            <InfoRow label="Description" value={assetData?.description || '-'} />
+                        </div>
+                    </div>
+                );
+
+            case 'Tasks':
+                return (
+                    <TaskTab
+                        tasks={tasks}
+                        loadingTasks={loadingTasks} // ⭐ เพิ่ม
+
+                        onTaskClick={(task: Task) => setSelectedTask(task)}
+                        onTaskDeleted={(taskId: number) => {
+                            setTasks(prev => prev.filter(t => t.id !== taskId));
+                        }}
+                        selectedTaskId={selectedTask?.id ?? null}
+                        onClosePanel={() => {
+                            setIsPanelOpen(false);
+                            setTimeout(() => setSelectedTask(null), 300);
+                        }}
+                    />
+                );
+
+            case 'Notes':
+                return (
+                    <NoteTab
+                        notes={notes}
+                        loadingNotes={loadingNotes}
+                        openAssignedDropdown={openAssignedDropdown}
+                        setOpenAssignedDropdown={setOpenAssignedDropdown}
+                        onContextMenu={handleNoteContextMenu}
+                        onDeleteNote={(noteId: number) => {
+                            const note = notes.find(n => n.id === noteId);
+                            setDeleteNoteConfirm({
+                                noteId,
+                                subject: note?.subject || ''
+                            });
+                        }}
+                        onNoteClick={(note: Note) => {
+                            setSelectedNote(note);
+                            setIsNotePanelOpen(false);
+                            setTimeout(() => setIsNotePanelOpen(true), 10);
+                        }}
+                    />
+                );
+
+            case 'Versions':
+                return (
+                    <VersionTab
+                        versions={assetVersions}
+                        isLoadingVersions={isLoadingAssetVersions}
+                        onUpdateVersion={async (versionId, field, value) => {
+                            try {
+                                await axios.post(`${ENDPOINTS.UPDATE_VERSION}`, { versionId, field, value });
+                                setAssetVersions(prev => prev.map(v => v.id === versionId ? { ...v, [field]: value } : v));
+                                return true;
+                            } catch { alert('ไม่สามารถอัปเดทได้'); return false; }
+                        }}
+                        onDeleteVersion={async (versionId: number) => {
+                            try {
+                                const res = await axios.delete(`${ENDPOINTS.DELETE_ASSET_VERSION}/${versionId}`, {
+                                    data: { entityId: AssetID }
+                                });
+                                removeVersionFromState(versionId);
+                                const newThumb = res.data.newThumbnail;
+                                if (newThumb) {
+                                    setAssetData(prev => prev ? { ...prev, thumbnail: newThumb } : prev);
+                                    const currentStored = JSON.parse(localStorage.getItem('selectedAsset') || '{}');
+                                    localStorage.setItem('selectedAsset', JSON.stringify({
+                                        ...currentStored,
+                                        file_url: newThumb,
+                                        thumbnail: newThumb
+                                    }));
+                                } else {
+                                    // ลบหมดแล้ว → clear thumbnail
+                                    setAssetData(prev => prev ? { ...prev, thumbnail: '' } : prev);
+                                    const currentStored = JSON.parse(localStorage.getItem('selectedAsset') || '{}');
+                                    localStorage.setItem('selectedAsset', JSON.stringify({
+                                        ...currentStored,
+                                        file_url: '',
+                                        thumbnail: ''
+                                    }));
+                                }
+                            } catch {
+                                alert('ไม่สามารถลบได้');
+                            }
+                        }}
+                        formatDate={formatDate}
+                    />
+                );
+
+            case 'Shots':
+                return (
+                    <ShotAssetTab
+                        shots={linkedShots}
+                        loading={loadingLinkedShots}
+                    />
+                );
+
+
+
+            case 'Publishes':
+                return (
+                    <div className="bg-gradient-to-br from-gray-800 to-gray-700 p-6 rounded-xl border border-gray-600/50 shadow-lg">
+                        <p className="text-gray-300">Publishes content will be displayed here</p>
+                    </div>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    //============================================================================================================================================//
+
+    if (!assetData) {
+        return (
+            <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
+                <div className="pt-14">
+                    <Navbar_Project activeTab="other" />
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                    <p className="text-gray-400">No asset selected</p>
+                </div>
+            </div>
+        );
+    }
+
+
+
+    const handleCreateShot = async () => {
+        if (!createShotForm.shot_name.trim() || isCreatingShot) return;
+        setIsCreatingShot(true);
+        try {
+            // สร้าง shot ใหม่ linked กับ project
+            const res = await axios.post(ENDPOINTS.CREATESHOT, {
+                projectId,
+                shotName: createShotForm.shot_name.trim(),
+                description: createShotForm.description || null,
+                status: createShotForm.status,
+            });
+
+            const newShotId = res.data.shotId;
+
+            // auto-link shot กับ asset นี้
+            await axios.post(ENDPOINTS.ADD_ASSET_TO_SHOT, {
+                shotId: newShotId,
+                assetId: AssetID,
+            });
+
+            // refresh linked shots
+            const updated = await axios.post(ENDPOINTS.GET_ASSET_SHOTS_JOIN, { assetId: AssetID });
+            setLinkedShots(updated.data);
+
+            setShowAddShot(false);
+            setCreateShotForm({ shot_name: '', description: '', status: 'wtg' });
+        } catch (err) {
+            alert('Failed to create shot');
+        } finally {
+            setIsCreatingShot(false);
+        }
+    };
+
+
+
+
+    return (
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800"
+            onClick={handleClickOutside}
+            onMouseMove={handleMouseMove}
+            onMouseUp={() => setIsResizing(false)}
+        >
+            <div className="pt-14">
+                <Navbar_Project activeTab="other" />
+            </div>
+
+            <div className="pt-12 flex-1">
+                <div className="p-6 max-w-[1600px] mx-auto">
+                    {/* Header Card */}
+                    <div className="w-full bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50">
+                        {/* Breadcrumb */}
+                        {/* Breadcrumb */}
+                        <div className="mb-4 flex items-center gap-2 text-sm text-gray-400">
+                            <span className="hover:text-white cursor-pointer transition-colors">
+                                📁 {assetData.type || '-'}   {/* ← เปลี่ยนจาก assetData.sequence */}
+                            </span>
+                            <span className="text-gray-600">›</span>
+                            <span className="font-bold text-white">🎬 {assetData.asset_name}</span>
+                        </div>
+                        {/* Preview Modal */}
+                        {showPreview && assetData.thumbnail && (
+                            <div
+                                className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm"
+                                onClick={() => setShowPreview(false)}
+                            >
+                                <button
+                                    onClick={() => setShowPreview(false)}
+                                    className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all hover:scale-110"
+                                >
+                                    <X className="w-6 h-6 text-white" />
+                                </button>
+
+                                <div className="max-w-5xl max-h-[85vh] w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                                    {assetData.thumbnail.match(/\.(mp4|webm|ogg|mov|avi)$/i) ? (
+                                        <video
+                                            src={ENDPOINTS.image_url + assetData.thumbnail}
+                                            className="w-full h-full object-contain rounded-2xl shadow-2xl"
+                                            controls
+                                            autoPlay
+                                        />
+                                    ) : (
+                                        <img
+                                            src={ENDPOINTS.image_url + assetData.thumbnail}
+                                            alt="Preview"
+                                            className="w-full h-full object-contain rounded-2xl shadow-2xl"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Main Content */}
+                        <div className="grid grid-cols-12 gap-4">
+                            {/* Thumbnail */}
+                            <div className="col-span-3">
+                                <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-2xl border border-gray-600/30 group">
+                                    {/* Background gradient - animated */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black animate-pulse"></div>
+
+                                    {assetData.thumbnail ? (
+                                        assetData.thumbnail.match(/\.(mp4|webm|ogg|mov|avi)$/i) ? (
+                                            <video
+                                                src={ENDPOINTS.image_url + assetData.thumbnail}
+                                                className="relative w-full h-full object-cover z-10"
+                                                muted
+                                                loop
+                                                autoPlay
+                                            />
+                                        ) : (
+                                            <>
+                                                <img
+                                                    src={ENDPOINTS.image_url + assetData.thumbnail}
+                                                    alt=""
+                                                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-md opacity-60 pointer-events-none"
+                                                    aria-hidden="true"
+                                                />
+                                                <img
+                                                    src={ENDPOINTS.image_url + assetData.thumbnail}
+                                                    alt="Asset thumbnail"
+                                                    className="relative w-full h-full object-contain transition-transform duration-300 group-hover:scale-105 cursor-pointer z-10"
+                                                />
+                                            </>
+                                        )
+
+
+                                    ) : (
+                                        <div className="relative w-full h-full flex flex-col items-center justify-center gap-3 z-10">
+                                            <div className="p-4 rounded-full bg-gray-800/50 backdrop-blur-sm">
+                                                <Image className="w-10 h-10 text-gray-400" />
+                                            </div>
+                                            <p className="text-gray-400 text-sm font-medium">No preview available</p>
+                                            <p className="text-gray-500 text-xs">Click to upload</p>
+                                        </div>
+                                    )}
+
+                                    {/* Hover Controls */}
+                                    {assetData.thumbnail && (
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 bg-gradient-to-t from-black/80 via-black/50 to-transparent z-20">
+                                            <div className="flex gap-3">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        if (assetData.thumbnail.match(/\.(mp4|webm|ogg|mov|avi)$/i)) {
+                                                            const latestVideoVersion = assetVersions.find(v =>
+                                                                v.file_url?.match(/\.(mp4|webm|ogg|mov|avi)$/i)
+                                                            );
+                                                            localStorage.setItem("selectedVideo", JSON.stringify({
+                                                                videoUrl: ENDPOINTS.image_url + assetData.thumbnail,
+                                                                shotCode: assetData.asset_name,
+                                                                sequence: assetData.sequence,
+                                                                status: assetData.status,
+                                                                description: assetData.description || "",
+                                                                dueDate: assetData.dueDate || "",
+                                                                shotId: assetData.id,
+                                                                versionId: latestVideoVersion?.id ?? null,
+                                                                versionName: latestVideoVersion?.version_name ?? null,
+                                                                versionStatus: latestVideoVersion?.status ?? null,
+                                                                versionUploadedBy: latestVideoVersion?.uploaded_by_name ?? null,
+                                                                versionCreatedAt: latestVideoVersion?.created_at ?? null,
+                                                                versionDescription: latestVideoVersion?.description ?? null,
+                                                            }));
+                                                            navigate('/Others_Video');
+                                                        } else {
+                                                            setShowPreview(true);
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-500 hover:from-blue-400 hover:to-blue-400 active:scale-95 text-white rounded-lg flex items-center gap-2 text-sm font-medium shadow-lg hover:shadow-blue-500/50 transition-all duration-200"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                    View
+                                                </button>
+                                                <label className={`px-4 py-2 text-white rounded-lg flex items-center gap-2 text-sm font-medium shadow-lg transition-all duration-200
+                                                    ${thumbnailDisabled
+                                                        ? 'bg-gray-600 opacity-50 cursor-not-allowed pointer-events-none'
+                                                        : 'bg-emerald-600 hover:bg-emerald-500 active:scale-95 cursor-pointer hover:shadow-emerald-500/50'
+                                                    }`}>
+                                                    <Upload className="w-4 h-4" />
+                                                    {isUploadingThumbnail ? 'Uploading...' : 'Change'}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        disabled={thumbnailDisabled}
+                                                        onChange={async (e) => {
+                                                            if (!e.target.files?.[0]) return;
+                                                            setIsUploadingThumbnail(true);
+                                                            const file = e.target.files[0];
+                                                            const formData = new FormData();
+                                                            formData.append("assetId", assetData.id.toString());
+                                                            formData.append("file", file);
+                                                            formData.append("fileName", file.name);
+                                                            formData.append("oldImageUrl", assetData.thumbnail || "");
+                                                            formData.append("type", "image");
+
+                                                            try {
+                                                                const res = await fetch(ENDPOINTS.UPLOAD_ASSET, {
+                                                                    method: "POST",
+                                                                    body: formData,
+                                                                });
+
+                                                                const data = await res.json();
+
+                                                                if (res.ok) {
+                                                                    const newFileUrl = data.file?.fileUrl || data.fileUrl;
+
+                                                                    setAssetData(prev => prev ? {
+                                                                        ...prev,
+                                                                        thumbnail: newFileUrl
+                                                                    } : null);
+
+                                                                    const stored = JSON.parse(localStorage.getItem("selectedAsset") || "{}");
+                                                                    const updated = {
+                                                                        ...stored,
+                                                                        file_url: newFileUrl,
+                                                                    };
+                                                                    localStorage.setItem("selectedAsset", JSON.stringify(updated));
+                                                                } else {
+                                                                    alert("Upload failed: " + (data.error || "Unknown error"));
+                                                                }
+                                                            } catch (err) {
+                                                                console.error("❌ Upload error:", err);
+                                                                alert("Upload error");
+                                                            } finally {
+                                                                setIsUploadingThumbnail(false);
+                                                            }
+                                                        }}
+                                                    />
+                                                </label>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Upload zone when no thumbnail */}
+                                    {!assetData.thumbnail && (
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className={`absolute inset-0 w-full h-full opacity-0 z-30
+                                                ${thumbnailDisabled ? 'cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                                            disabled={thumbnailDisabled}
+                                            onChange={async (e) => {
+                                                if (!e.target.files?.[0]) return;
+                                                setIsUploadingThumbnail(true);
+                                                const file = e.target.files[0];
+                                                const formData = new FormData();
+                                                formData.append("assetId", assetData.id.toString());
+                                                formData.append("file", file);
+                                                formData.append("oldImageUrl", assetData.thumbnail || "");
+                                                formData.append("type", file.type.split('/')[0]);
+
+                                                try {
+                                                    const res = await fetch(ENDPOINTS.UPLOAD_ASSET, {
+                                                        method: "POST",
+                                                        body: formData,
+                                                    });
+
+                                                    const data = await res.json();
+
+                                                    if (res.ok) {
+                                                        const newFileUrl = data.file?.fileUrl || data.fileUrl;
+
+                                                        setAssetData(prev => prev ? {
+                                                            ...prev,
+                                                            thumbnail: newFileUrl
+                                                        } : null);
+
+                                                        const stored = JSON.parse(localStorage.getItem("selectedAsset") || "{}");
+                                                        const updated = {
+                                                            ...stored,
+                                                            file_url: newFileUrl,
+                                                        };
+                                                        localStorage.setItem("selectedAsset", JSON.stringify(updated));
+                                                    }
+                                                } catch (err) {
+                                                    console.error("❌ Upload error:", err);
+                                                } finally {
+                                                    setIsUploadingThumbnail(false);
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Info Grid */}
+                            <div className="col-span-9 grid grid-cols-3 gap-3">
+                                {/* Asset Name */}
+                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                        <span>🎬</span>
+                                        Asset Name
+                                    </label>
+                                    {editingField === 'assetName' ? (
+                                        <input
+                                            value={assetData.asset_name}
+                                            autoFocus
+                                            onChange={(e) =>
+                                                setAssetData(prev => prev ? { ...prev, asset_name: e.target.value } : null)
+                                            }
+                                            onBlur={() => {
+                                                updateAssetField("asset_name", assetData.asset_name);
+                                                setEditingField(null);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    updateAssetField("asset_name", assetData.asset_name);
+                                                    setEditingField(null);
+                                                }
+                                                if (e.key === "Escape") setEditingField(null);
+                                            }}
+                                            className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1.5 text-white text-sm font-semibold"
+                                        />
+                                    ) : (
+                                        <p
+                                            className="text-white font-semibold cursor-pointer hover:bg-gray-700/50 px-2 py-1.5 rounded transition-colors break-words"
+                                            onClick={() => setEditingField('assetName')}
+                                        >
+                                            {assetData.asset_name}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Status */}
+                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50 relative">
+                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                        <span>🎯</span>
+                                        Status
+                                    </label>
+                                    <button
+                                        onClick={handleStatusClick}
+                                        className="flex items-center gap-2 px-3 py-1.5 text-white rounded-xl font-medium transition-all w-full justify-between text-sm bg-gradient-to-r from-gray-700 to-gray-700 hover:from-gray-600 hover:to-gray-600"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {statusConfig[assetData.status].icon === '-' ? (
+                                                <span className="text-gray-400 font-bold">-</span>
+                                            ) : (
+                                                <div className={`w-2 h-2 rounded-full ${statusConfig[assetData.status].color}`}></div>
+                                            )}
+                                            <span className="text-sm">{statusConfig[assetData.status].label}</span>
+                                        </div>
+                                        <ChevronDown className="w-5" />
+
+                                    </button>
+
+                                    {showStatusMenu && (
+                                        <div className="absolute left-0 mt-1 bg-gray-800 rounded-lg shadow-2xl z-50 w-full border border-gray-700">
+                                            {(Object.entries(statusConfig) as [StatusType, { label: string; fullLabel: string; color: string; icon: string }][]).map(([key, config]) => (
+                                                <button
+                                                    key={key}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleStatusChange(key);
+                                                    }}
+                                                    className="flex items-center gap-5 w-full px-3 py-2 hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg text-left transition-colors bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-600 hover:to-gray-600"
+                                                >
+                                                    {config.icon === '-' ? (
+                                                        <span className="text-gray-400 font-bold w-2 text-center">-</span>
+                                                    ) : (
+                                                        <div className={`w-2 h-2 rounded-full ${config.color}`}></div>
+                                                    )}
+                                                    <div className="text-xs text-gray-200 flex items-center gap-5">
+                                                        <span className="inline-block w-8">
+                                                            {config.label}
+                                                        </span>
+                                                        <span>{config.fullLabel}</span>
+                                                    </div>
+                                                    {assetData.status === key && (
+                                                        <Check className="w-4 h-4 text-blue-400 ml-auto " />
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Type Name */}
+                                {/* Type */}
+                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50 relative">
+                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                        <span>📁</span>
+                                        Type
+                                    </label>
+                                    <div
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingField(editingField === 'type' ? null : 'type');
+                                        }}
+                                        className="cursor-pointer w-full h-12 flex items-center justify-between px-2 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-md hover:bg-purple-500/20 transition-colors rounded-xl"
+                                    >
+                                        <span className="text-xs text-purple-300 font-medium">
+                                            {assetData.type || 'No type'}
+                                        </span>
+                                        <ChevronDown className="text-purple-400 w-5" />
+                                    </div>
+
+                                    {editingField === 'type' && (
+                                        <div className="absolute left-0 mt-1 w-full z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl max-h-52 overflow-y-auto">
+
+                                            {type_assets.map(t => (
+                                                <div
+                                                    key={t}
+                                                    onClick={() => {
+                                                        updateAssetField('type', t);
+                                                        setEditingField(null);
+                                                    }}
+                                                    className={`px-3 py-2 text-xs cursor-pointer transition-colors flex items-center justify-between
+                        ${assetData.type === t
+                                                            ? 'bg-purple-500/20 text-purple-300'
+                                                            : 'text-gray-200 hover:bg-gray-700'
+                                                        } last:rounded-b-lg`}
+                                                >
+                                                    <span>{t}</span>
+                                                    {assetData.type === t && <span className="text-purple-400">✓</span>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Description - ใช้ 3 คอลัมน์ */}
+                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50 col-span-3">
+                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                        <span>📝</span>
+                                        Description
+                                    </label>
+                                    {editingField === 'description' ? (
+                                        <textarea
+                                            value={assetData.description || ''}
+                                            autoFocus
+                                            rows={2}
+                                            onChange={(e) =>
+                                                setAssetData(prev => prev ? { ...prev, description: e.target.value } : null)
+                                            }
+                                            onBlur={() => {
+                                                updateAssetField("description", assetData.description);
+                                                setEditingField(null);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    updateAssetField("description", assetData.description);
+                                                    setEditingField(null);
+                                                }
+                                                if (e.key === "Escape") setEditingField(null);
+                                            }}
+                                            className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1.5 text-white text-xs resize-none"
+                                        />
+                                    ) : (
+                                        <p
+                                            className="text-white text-xs cursor-pointer hover:bg-gray-700/50 px-2 py-1.5 rounded transition-colors line-clamp-2"
+                                            onClick={() => setEditingField('description')}
+                                        >
+                                            {assetData.description || <span className="text-gray-500 italic">Click to add...</span>}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <nav className="flex items-center gap-2 border-t border-gray-700/50 pt-4 mt-4 overflow-x-auto pb-1">
+                            {['Asset Info', 'Tasks', 'Notes', 'Versions', 'Shots', 'Publishes'].map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === tab
+                                        ? 'text-white shadow-lg bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-700 hover:to-blue-600'
+                                        : 'text-gray-300 bg-gradient-to-r from-gray-700 to-gray-700 hover:from-gray-600 hover:to-gray-600'
+                                        }`}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+
+                    {/* Tab Content Section */}
+                    <div className="mt-4 p-5 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-xl border border-gray-700/50">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg text-white font-bold flex items-center gap-2">
+                                <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
+                                {activeTab}
+                            </h3>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                                {activeTab === 'Tasks' && (
+                                    <button
+                                        onClick={() => setShowCreateAsset_Task(true)}
+                                        className="px-3 py-1.5  text-white text-xs font-medium rounded-lg flex items-center gap-1.5 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+                                    >
+                                        <span>+</span>
+                                        Add Task
+                                    </button>
+                                )}
+
+                                {activeTab === 'Notes' && (
+                                    <button
+                                        onClick={() => setShowCreateAsset_Note(true)}
+                                        className="px-3 py-1.5 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+                                    >
+                                        <span>+</span>
+                                        Add Note
+                                    </button>
+                                )}
+                                {activeTab === 'Versions' && (
+                                    <button
+                                        onClick={() => setShowCreateVersion(true)}
+                                        className="px-3 py-1.5 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+                                    >
+                                        <span>+</span> Add Version
+                                    </button>
+                                )}
+                                {activeTab === 'Shots' && (
+                                    <button
+                                        onClick={() => setShowAddShot(true)}
+                                        className="px-3 py-1.5 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+                                    >
+                                        <span>+</span> Add Shot
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="relative">
+                            {renderTabContent()}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Create Task Modal */}
+            {showCreateAsset_Task && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/60"
+                        onClick={() => !isCreatingTask && setShowCreateAsset_Task(false)}
+                    />
+
+                    {/* Modal */}
+                    <div className="relative w-full max-w-2xl bg-gradient-to-br from-[#0f1729] via-[#162038] to-[#0d1420] rounded-2xl shadow-2xl shadow-blue-900/50 border border-blue-500/20 overflow-hidden">
+                        {/* Header */}
+                        <div className="px-6 py-3 bg-gradient-to-r from-[#1e3a5f] via-[#1a2f4d] to-[#152640] border-b border-blue-500/30 flex items-center justify-between">
+                            <h2 className="text-lg text-gray-200 font-normal">
+                                Create a new Task <span className="text-gray-400 text-sm font-normal">for {assetData?.asset_name}</span>
+                            </h2>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-3 max-h-[70vh] overflow-y-auto">
+                            {/* Task Name - Required */}
+                            <div className="grid grid-cols-[140px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">
+                                    Task Name: <span className="text-red-400">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Enter task name"
+                                    value={createTaskForm.task_name}
+                                    onChange={(e) => handleFormChange('task_name', e.target.value)}
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500"
+                                />
+                            </div>
+
+                            {/* Link to Asset (Read-only) */}
+                            <div className="grid grid-cols-[140px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">
+                                    Link to:
+                                </label>
+                                <input
+                                    type="text"
+                                    value={`Asset: ${assetData?.asset_name}`}
+                                    readOnly
+                                    className="h-9 px-3 bg-white/4  border border-blue-500/30 rounded text-gray-400 text-sm cursor-not-allowed"
+                                />
+                            </div>
+
+                            {/* Start Date */}
+                            <div className="grid grid-cols-[140px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">
+                                    Start Date:
+                                </label>
+                                <input
+                                    type="date"
+                                    value={createTaskForm.start_date}
+                                    onChange={(e) => handleFormChange('start_date', e.target.value)}
+                                    className="h-9 px-3 bg-white/4  border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+                                />
+                            </div>
+
+                            {/* Due Date */}
+                            <div className="grid grid-cols-[140px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">
+                                    Due Date:
+                                </label>
+                                <input
+                                    type="date"
+                                    value={createTaskForm.due_date}
+                                    onChange={(e) => handleFormChange('due_date', e.target.value)}
+                                    className="h-9 px-3 bg-white/4  border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+                                />
+                            </div>
+
+                            {/* Description */}
+                            <div className="grid grid-cols-[140px_1fr] gap-4 items-start">
+                                <label className="text-sm text-gray-300 text-right pt-2">
+                                    Description:
+                                </label>
+                                <textarea
+                                    placeholder="Enter task description (optional)"
+                                    value={createTaskForm.description}
+                                    onChange={(e) => handleFormChange('description', e.target.value)}
+                                    rows={3}
+                                    className="px-3 py-2 bg-white/4  border border-blue-500/30 rounded text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 resize-none"
+                                />
+                            </div>
+
+
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-3 bg-gradient-to-r from-[#0a1018] to-[#0d1420] rounded-b flex justify-between items-center gap-3">
+                            <button
+                                onClick={() => setShowCreateAsset_Task(false)}
+                                disabled={isCreatingTask}
+                                className="px-4 h-9 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-700 hover:to-gray-700 text-white text-sm rounded-l flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={handleCreateTask}
+                                disabled={isCreatingTask}
+                                className="px-4 h-9 bg-gradient-to-r from-[#1e88e5] to-[#1565c0] hover:from-[#1976d2] hover:to-[#0d47a1] text-sm rounded-lg text-white shadow-lg shadow-blue-500/30 transition-all font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isCreatingTask ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>กำลังสร้าง...</span>
+                                    </>
+                                ) : (
+                                    'Create Task'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Note Modal */}
+            {showCreateAsset_Note && (
+                <>
+                    <div
+                        className="fixed inset-0 z-40 bg-black/60"
+                        onClick={() => setShowCreateAsset_Note(false)}
+                    />
+
+                    <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+                        <div
+                            style={{
+                                transform: `translate(${noteModalPosition?.x || 0}px, ${noteModalPosition?.y || 0}px)`
+                            }}
+                            className="relative w-full max-w-xl bg-gradient-to-br from-[#0f1729] via-[#162038] to-[#0d1420] rounded-2xl shadow-2xl shadow-blue-900/50 border border-blue-500/20 overflow-hidden pointer-events-auto"
+                        >
+                            <div
+                                onMouseDown={(e) => {
+                                    const startX = e.clientX;
+                                    const startY = e.clientY;
+                                    const startPos = noteModalPosition || { x: 0, y: 0 };
+
+                                    const handleMouseMove = (moveEvent: MouseEvent) => {
+                                        const deltaX = moveEvent.clientX - startX;
+                                        const deltaY = moveEvent.clientY - startY;
+                                        setNoteModalPosition({
+                                            x: startPos.x + deltaX,
+                                            y: startPos.y + deltaY
+                                        });
+                                    };
+
+                                    const handleMouseUp = () => {
+                                        document.removeEventListener('mousemove', handleMouseMove);
+                                        document.removeEventListener('mouseup', handleMouseUp);
+                                    };
+
+                                    document.addEventListener('mousemove', handleMouseMove);
+                                    document.addEventListener('mouseup', handleMouseUp);
+                                }}
+                                className="px-5 py-3 bg-gradient-to-r from-[#1e3a5f] via-[#1a2f4d] to-[#152640] border-b border-blue-500/30 cursor-grab active:cursor-grabbing select-none"
+                            >
+                                <div className="flex items-baseline justify-between">
+                                    <div className="flex items-baseline gap-2">
+                                        <h2 className="text-base font-semibold text-white">New Note</h2>
+                                        <span className="text-xs text-blue-300/60">- Global Form</span>
+                                    </div>
+                                    <div
+                                        onClick={() => setShowCreateAsset_Note(false)}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        className=" cursor-pointer text-gray-400 hover:text-white text-xl leading-none transition-colors"
+                                    >
+                                        ×
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="px-5 py-4 space-y-3">
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        Links
+                                    </label>
+                                    <div className="flex items-center gap-2 h-8 px-3 bg-[#0a1018] border border-blue-500/30 rounded-lg text-blue-50 text-sm">
+                                        <span className="truncate text-gray-400">
+                                            (Shot: {assetData?.asset_name || 'N/A'})
+                                        </span>
+                                        <span className="ml-auto text-[10px] text-green-400/80 flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 flex-shrink-0">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+                                            auto
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        📄 Tasks
+                                    </label>
+                                    <div className="p-3 bg-white/4 border border-blue-500/30 rounded-lg max-h-36 overflow-y-auto">
+                                        {loadingModalTasks ? (
+                                            <div className="flex items-center justify-center py-2 gap-2 text-gray-500 text-xs">
+                                                <div className="w-3 h-3 border border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                                                กำลังโหลด...
+                                            </div>
+                                        ) : modalTasks.length === 0 ? (
+                                            <p className="text-xs text-gray-600 italic">ไม่มี task สำหรับ asset นี้</p>
+                                        ) : (
+                                            <div className="flex flex-col gap-1.5">
+                                                {modalTasks.map((task) => (
+                                                    <label key={task.id} className="flex items-center gap-2 cursor-pointer group">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedTasks.includes(task.id)}
+                                                            onChange={() =>
+                                                                setSelectedTasks((prev) =>
+                                                                    prev.includes(task.id)
+                                                                        ? prev.filter((id) => id !== task.id)
+                                                                        : [...prev, task.id]
+                                                                )
+                                                            }
+                                                            className="w-3.5 h-3.5 rounded border-blue-500/30 bg-[#0a1018] text-blue-500 focus:ring-2 focus:ring-blue-500/60"
+                                                        />
+                                                        <span className="text-xs text-gray-300 group-hover:text-white transition-colors truncate flex-1">
+                                                            {task.task_name}
+                                                        </span>
+                                                        {task.pipeline_step_name && (
+                                                            <span className="text-[10px] px-1.5 py-0.5 rounded text-blue-300/70 bg-blue-500/10 border border-blue-500/20 flex-shrink-0">
+                                                                {task.pipeline_step_name}
+                                                            </span>
+                                                        )}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {selectedTasks.length > 0 && (
+                                        <p className="text-[10px] text-blue-400">เลือกแล้ว {selectedTasks.length} task</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        Attach files
+                                    </label>
+
+                                    <label className="inline-flex items-center gap-2 px-3 h-8 rounded-lg border border-blue-500/30 bg-[#0a1018] text-blue-200 text-sm cursor-pointer hover:bg-blue-500/10 transition-all">
+                                        <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
+                                        </svg>
+                                        Upload file
+                                        <input
+                                            type="file"
+                                            multiple
+                                            onChange={handleFiletaskChange}
+                                            className="hidden"
+                                        />
+                                    </label>
+
+                                    {files.length > 0 && (
+                                        <div className="space-y-1 mt-1">
+                                            {files.map((file, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center justify-between px-2 py-1 text-xs bg-blue-500/10 border border-blue-500/20 rounded"
+                                                >
+                                                    <span className="truncate text-blue-100">
+                                                        {file.name}
+                                                    </span>
+                                                    <div
+                                                        onClick={() => removetaskFile(index)}
+                                                        className="cursor-pointer text-blue-300 hover:text-red-400"
+                                                    >
+                                                        ✕
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1.5 relative">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        To
+                                    </label>
+
+                                    <div className="flex flex-wrap gap-1 mb-1 ">
+                                        {selectedPeople.map((person) => (
+                                            <span
+                                                key={person.id}
+                                                className="flex items-center gap-1 px-2 py-0.5 text-xs bg-blue-500/20 text-blue-200 rounded"
+                                            >
+                                                {person.name}
+                                                <div
+                                                    onClick={() => removePerson(person.id)}
+                                                    className="cursor-pointer text-blue-300 hover:text-red-400"
+                                                >
+                                                    ✕
+                                                </div>
+                                            </span>
+                                        ))}
+                                    </div>
+
+                                    <input
+                                        type="text"
+                                        value={query}
+                                        onChange={(e) => {
+                                            setQuery(e.target.value);
+                                            setOpen(true);
+                                        }}
+                                        onFocus={() => setOpen(true)}
+                                        onBlur={() => setTimeout(() => setOpen(false), 200)}
+                                        className="w-full h-8 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-blue-50 text-sm placeholder-blue-400/40 focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+                                        placeholder={loading ? "Loading..." : "Add people..."}
+                                        disabled={loading}
+                                    />
+
+                                    {open && filteredPeople.length > 0 && (
+                                        <div className="absolute z-10 mt-1 w-full bg-[#0a1018] border border-blue-500/30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                            {filteredPeople.map((person) => (
+                                                <div
+                                                    key={person.id}
+                                                    onClick={() => addPerson(person)}
+                                                    className="px-3 py-1.5 text-sm text-gray-200 hover:bg-blue-500/20 cursor-pointer"
+                                                >
+                                                    <div className="font-medium">{person.name}</div>
+                                                    <div className="text-xs text-gray-400">{person.email}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {open && query && filteredPeople.length === 0 && !loading && (
+                                        <div className="absolute z-10 mt-1 w-full bg-[#0a1018] border border-blue-500/30 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-400">
+                                            No people found
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        Subject <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={subject}
+                                        onChange={(e) => setSubject(e.target.value)}
+                                        className="w-full h-8 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-blue-50 text-sm placeholder-blue-400/40 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400 transition-all"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        Type <span className="text-red-400">*</span>
+                                    </label>
+
+                                    <select
+                                        value={type ?? ''}
+                                        onChange={(e) => setType(e.target.value as NoteType)}
+                                        className={`w-full h-8 px-3 bg-white/4 border rounded-lg text-sm transition-all
+                                        ${type === null
+                                                ? 'border-blue-500/30 text-gray-400'
+                                                : 'border-blue-500/30 text-blue-50'}
+                                            focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400
+                                        `}
+                                    >
+                                        <option value="" disabled hidden>
+                                            — Please select —
+                                        </option>
+                                        <option value="Client">Client</option>
+                                        <option value="Internal">Internal</option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-300">
+                                        Message <span className="text-red-400">*</span>
+                                    </label>
+                                    <textarea
+                                        value={body}
+                                        onChange={(e) => setBody(e.target.value)}
+                                        placeholder="Write your note here..."
+                                        rows={3}
+                                        className="w-full px-3 py-2 bg-white/4 border border-blue-500/30 rounded-lg text-blue-50 text-sm placeholder-blue-400/40 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-400 transition-all resize-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="px-5 py-3 bg-gradient-to-r from-[#0a1018] to-[#0d1420] border-t border-blue-500/30 flex justify-end items-center gap-2">
+                                <button
+                                    onClick={() => setShowCreateAsset_Note(false)}
+                                    className="px-4 h-8 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-700 hover:to-gray-700 text-xs rounded-lg text-gray-200 transition-all font-medium flex flex items-center"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    className="px-4 h-8 bg-gradient-to-r from-[#2196F3] to-[#1976D2] hover:from-[#1976D2] hover:to-[#1565C0] text-xs rounded-lg text-white shadow-lg shadow-blue-500/20 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                    onClick={handleCreateNote}
+                                    disabled={uploading || !subject.trim() || !type || !body.trim()}
+                                >
+                                    {uploading ? 'Creating...' : 'Create Note'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Create Version Modal */}
+            {showCreateVersion && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => !isCreatingVersion && resetVersionForm()}
+                    />
+
+                    <div
+                        style={{
+                            transform: `translate(${versionModalPosition?.x || 0}px, ${versionModalPosition?.y || 0}px)`
+                        }}
+                        className="relative w-full max-w-lg bg-gradient-to-br from-[#0f1729] via-[#162038] to-[#0d1420] rounded-2xl shadow-2xl shadow-blue-900/50 border border-blue-500/20 overflow-hidden"
+                    >
+                        {/* Header */}
+                        <div
+                            onMouseDown={(e) => {
+                                const startX = e.clientX;
+                                const startY = e.clientY;
+                                const startPos = versionModalPosition || { x: 0, y: 0 };
+
+                                const handleMouseMove = (moveEvent: MouseEvent) => {
+                                    const deltaX = moveEvent.clientX - startX;
+                                    const deltaY = moveEvent.clientY - startY;
+                                    setVersionModalPosition({
+                                        x: startPos.x + deltaX,
+                                        y: startPos.y + deltaY
+                                    });
+                                };
+
+                                const handleMouseUp = () => {
+                                    document.removeEventListener('mousemove', handleMouseMove);
+                                    document.removeEventListener('mouseup', handleMouseUp);
+                                };
+
+                                document.addEventListener('mousemove', handleMouseMove);
+                                document.addEventListener('mouseup', handleMouseUp);
+                            }}
+                            className="px-6 py-4 bg-gradient-to-r from-[#1e3a5f] via-[#1a2f4d] to-[#152640] border-b border-blue-500/30 cursor-grab active:cursor-grabbing select-none flex items-center justify-between"
+                        >
+                            <div>
+                                <h2 className="text-base font-semibold text-gray-100">Create Version</h2>
+                                <p className="text-xs text-blue-300/60 mt-0.5">
+                                    Linked to: <span className="text-blue-300 font-medium">{assetData?.asset_name}</span>
+                                </p>
+                            </div>
+                            <div
+                                onClick={() => !isCreatingVersion && resetVersionForm()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className="cursor-pointer text-gray-500 hover:text-gray-200 text-xl leading-none transition-colors"
+                            >
+                                ×
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-3 max-h-[70vh] overflow-y-auto">
+
+                            {/* File Upload */}
+                            <div className="space-y-1">
+                                <label className="text-xs text-gray-400 font-medium">Uploaded Version</label>
+                                <div
+                                    onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                                    onDragLeave={() => setIsDragging(false)}
+                                    onDrop={handleVersionFileDrop}
+                                    className={`relative rounded-lg border border-dashed transition-all duration-150 ${isDragging
+                                        ? 'border-blue-500/60 bg-blue-500/8'
+                                        : 'border-white/10 hover:border-white/20 bg-white/3 hover:bg-white/5'
+                                        }`}
+                                >
+                                    <label className="flex flex-col items-center justify-center py-5 px-4 cursor-pointer w-full">
+                                        {versionFiles.length > 0 ? (
+                                            <div className="w-full space-y-1.5">
+                                                {versionFiles.map((file, i) => (
+                                                    <div key={i} className="flex items-center gap-2.5 px-2.5 py-1.5 bg-white/5 rounded-md">
+                                                        {versionFilePreviews[i] ? (
+                                                            <img src={versionFilePreviews[i]} className="w-8 h-8 object-cover rounded" />
+                                                        ) : (
+                                                            <span className="text-base">🎬</span>
+                                                        )}
+                                                        <span className="text-xs text-gray-300 truncate flex-1">{file.name}</span>
+                                                        <div
+                                                            onClick={e => { e.preventDefault(); removeVersionFile(i); }}
+                                                            className="text-gray-600 hover:text-red-400 transition-colors text-xs"
+                                                        >✕</div>
+                                                    </div>
+                                                ))}
+                                                <div className="flex items-center justify-center gap-1 text-xs text-blue-400/70 hover:text-blue-300 cursor-pointer py-0.5">
+                                                    <span>+ Add more files</span>
+                                                    <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleVersionFileSelect} />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-1.5 pointer-events-none">
+                                                <span className="text-2xl text-gray-600">📎</span>
+                                                <p className="text-xs text-gray-400">Drop files or click to browse</p>
+                                            </div>
+                                        )}
+                                        <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleVersionFileSelect} />
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div className="space-y-1">
+                                <label className="text-xs text-gray-400 font-medium">Description</label>
+                                <textarea
+                                    placeholder="คำอธิบายเพิ่มเติมเกี่ยวกับเวอร์ชันนี้ (ไม่บังคับ)"
+                                    value={createVersionForm.description}
+                                    onChange={e => setCreateVersionForm(p => ({ ...p, description: e.target.value }))}
+                                    rows={2}
+                                    className="w-full px-3 py-2 bbg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 resize-none transition-all"
+                                />
+                            </div>
+
+                            {/* Version Name */}
+                            <div className="space-y-1">
+                                <label className="text-xs text-gray-400 font-medium">
+                                    Version Name <span className="text-red-400">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="ชื่อเวอร์ชัน เช่น v001, v002"
+                                    value={createVersionForm.version_name}
+                                    onChange={e => setCreateVersionForm(p => ({ ...p, version_name: e.target.value }))}
+                                    className="w-full h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 transition-all"
+                                />
+                            </div>
+
+                            {/* Uploaded By */}
+                            <div className="space-y-1">
+                                <label className="text-xs text-gray-400 font-medium">
+                                    Uploaded By <span className="text-red-400">*</span>
+                                </label>
+                                <div className="relative">
+                                    {selectedUploader ? (
+                                        <div className="flex items-center gap-2 h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg">
+                                            <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                                <span className="text-white text-[9px] font-semibold">{selectedUploader.name[0].toUpperCase()}</span>
+                                            </div>
+                                            <span className="text-gray-200 text-sm flex-1 truncate">{selectedUploader.name}</span>
+                                            <div
+                                                onClick={() => { setSelectedUploader(null); setUploaderQuery(''); }}
+                                                className="text-gray-600 hover:text-red-400 text-sm cursor-pointer"
+                                            >✕</div>
+                                        </div>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={uploaderQuery}
+                                            onChange={e => { setUploaderQuery(e.target.value); setUploaderOpen(true); }}
+                                            onFocus={() => setUploaderOpen(true)}
+                                            onBlur={() => setTimeout(() => setUploaderOpen(false), 200)}
+                                            placeholder={currentUser}
+                                            className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 w-full transition-all"
+                                        />
+                                    )}
+                                    {uploaderOpen && !selectedUploader && (
+                                        <div className="absolute z-50 top-full mt-1 w-full bg-[#0d1117] border border-blue-500/30 rounded-lg shadow-xl max-h-36 overflow-y-auto">
+                                            {allPeople
+                                                .filter(p => p.name.toLowerCase().includes(uploaderQuery.toLowerCase()))
+                                                .map(person => (
+                                                    <div
+                                                        key={person.id}
+                                                        onMouseDown={() => { setSelectedUploader(person); setUploaderOpen(false); }}
+                                                        className="flex items-center gap-2 px-3 py-2 hover:bg-blue-500/15 cursor-pointer"
+                                                    >
+                                                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                                            <span className="text-white text-[9px] font-semibold">{person.name[0].toUpperCase()}</span>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm text-gray-200">{person.name}</p>
+                                                            <p className="text-[10px] text-gray-500">{person.email}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            {allPeople.filter(p => p.name.toLowerCase().includes(uploaderQuery.toLowerCase())).length === 0 && (
+                                                <p className="px-3 py-2 text-xs text-gray-500">No people found</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Task — Searchable Combobox */}
+                            <div className="space-y-1">
+                                <label className="text-xs text-gray-400 font-medium">Task</label>
+                                {createVersionForm.task_id ? (() => {
+                                    const t = tasks.find(t => t.id === createVersionForm.task_id);
+                                    if (!t) return null;
+                                    return (
+                                        <div className="flex items-center gap-2 h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg">
+                                            {t.pipeline_step ? (
+                                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: t.pipeline_step.color_hex || '#6b7280' }} />
+                                            ) : (
+                                                <span className="text-sm flex-shrink-0">📋</span>
+                                            )}
+                                            <span className="text-gray-200 text-sm flex-1 truncate">{t.task_name}</span>
+                                            {t.pipeline_step && (
+                                                <span
+                                                    className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
+                                                    style={{
+                                                        backgroundColor: (t.pipeline_step.color_hex || '#6b7280') + '33',
+                                                        color: t.pipeline_step.color_hex || '#9ca3af',
+                                                    }}
+                                                >{t.pipeline_step.step_code}</span>
+                                            )}
+                                            <div
+                                                onClick={() => { setCreateVersionForm(p => ({ ...p, task_id: null, task: '' })); setTaskSearchQuery(''); }}
+                                                className="text-gray-600 hover:text-red-400 text-sm cursor-pointer flex-shrink-0"
+                                            >✕</div>
+                                        </div>
+                                    );
+                                })() : (
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={taskSearchQuery}
+                                            onChange={e => { setTaskSearchQuery(e.target.value); setTaskSearchOpen(true); }}
+                                            onFocus={() => setTaskSearchOpen(true)}
+                                            onBlur={() => setTimeout(() => setTaskSearchOpen(false), 200)}
+                                            placeholder="ค้นหา task..."
+                                            className="h-9 px-3 bg-white/4  border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-500 w-full transition-all"
+                                        />
+                                        {taskSearchOpen && (
+                                            <div className="absolute z-50 top-full mt-1 w-full bg-[#0d1117] border border-blue-500/30 rounded-lg shadow-xl max-h-44 overflow-y-auto">
+                                                <div
+                                                    onMouseDown={() => { setCreateVersionForm(p => ({ ...p, task_id: null, task: '' })); setTaskSearchQuery(''); setTaskSearchOpen(false); }}
+                                                    className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 cursor-pointer border-b border-white/5"
+                                                >
+                                                    <span className="text-xs text-gray-500 italic">— ไม่ระบุ task —</span>
+                                                </div>
+                                                {tasks
+                                                    .filter(t =>
+                                                        t.task_name.toLowerCase().includes(taskSearchQuery.toLowerCase()) ||
+                                                        (t.pipeline_step?.step_name || '').toLowerCase().includes(taskSearchQuery.toLowerCase())
+                                                    )
+                                                    .map(task => (
+                                                        <div
+                                                            key={task.id}
+                                                            onMouseDown={() => {
+                                                                setCreateVersionForm(p => ({ ...p, task_id: task.id, task: task.task_name }));
+                                                                setTaskSearchQuery('');
+                                                                setTaskSearchOpen(false);
+                                                            }}
+                                                            className="flex items-center gap-2.5 px-3 py-2 hover:bg-blue-500/15 cursor-pointer"
+                                                        >
+                                                            {task.pipeline_step ? (
+                                                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: task.pipeline_step.color_hex || '#6b7280' }} />
+                                                            ) : (
+                                                                <span className="text-xs flex-shrink-0">📋</span>
+                                                            )}
+                                                            <span className="text-xs text-gray-200 flex-1 truncate">{task.task_name}</span>
+                                                            {task.pipeline_step && (
+                                                                <span
+                                                                    className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
+                                                                    style={{
+                                                                        backgroundColor: (task.pipeline_step.color_hex || '#6b7280') + '33',
+                                                                        color: task.pipeline_step.color_hex || '#9ca3af',
+                                                                    }}
+                                                                >{task.pipeline_step.step_code}</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                {tasks.filter(t =>
+                                                    t.task_name.toLowerCase().includes(taskSearchQuery.toLowerCase()) ||
+                                                    (t.pipeline_step?.step_name || '').toLowerCase().includes(taskSearchQuery.toLowerCase())
+                                                ).length === 0 && taskSearchQuery && (
+                                                        <p className="px-3 py-2 text-xs text-gray-500">ไม่พบ task ที่ตรงกัน</p>
+                                                    )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Link + Project — read-only */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-gray-400 font-medium uppercase tracking-wider">Link</label>
+                                    <div className="h-9 px-3 bg-[#0a1018]/60 border border-blue-500/10 rounded-lg text-gray-500 text-sm flex items-center gap-2 select-none">
+                                        <span className="text-blue-300 font-medium truncate">{assetData?.asset_name}</span>
+                                        <span className="ml-auto text-[10px] text-green-400/80 flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 whitespace-nowrap">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>
+                                            auto-linked
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-gray-400 font-medium uppercase tracking-wider">Project</label>
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        value={projectData?.projectName || ''}
+                                        className="w-full h-9 px-3 bg-[#0a1018] border border-blue-500/30 rounded-lg text-gray-200 text-sm cursor-default"
+                                    />
+                                </div>
+                            </div>
+
+
+
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-3 bg-gradient-to-r from-[#0a1018] to-[#0d1420] border-t border-blue-500/30 flex justify-between items-center gap-3">
+                            <button
+                                onClick={() => resetVersionForm()}
+                                disabled={isCreatingVersion}
+                                className="px-4 h-9 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-700 hover:to-gray-700 text-white text-sm rounded-lg disabled:opacity-50 transition-all flex items-center"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={handleCreateVersion}
+                                disabled={isCreatingVersion}
+                                className="px-5 h-9 bg-gradient-to-r from-[#1e88e5] to-[#1565c0] hover:from-[#1976d2] hover:to-[#0d47a1] text-sm rounded-lg text-white shadow-lg shadow-blue-500/30 transition-all font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isCreatingVersion ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span>Creating...</span>
+                                    </>
+                                ) : (
+                                    'Create Version'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+
+            {/* Context Menu for Notes */}
+            {noteContextMenu && (
+                <div
+                    className="fixed z-[90] bg-gray-800 border border-gray-600 rounded-lg shadow-xl py-1 min-w-[160px]"
+                    style={{
+                        left: noteContextMenu.x,
+                        top: noteContextMenu.y,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        onClick={() => {
+                            if (noteContextMenu) {
+                                setDeleteNoteConfirm({
+                                    noteId: noteContextMenu.note.id,
+                                    subject: noteContextMenu.note.subject,
+                                });
+                            }
+                        }}
+                        className="w-full px-4 py-2 text-left text-red-400 flex items-center gap-2 text-sm bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-700"
+                    >
+                        🗑️ Delete Note
+                    </button>
+                </div>
+            )}
+
+            {/* Context Menu for Version */}
+            {versionContextMenu && (
+                <div
+                    className="fixed z-[90] bg-gray-800 border border-gray-600 rounded-lg shadow-xl py-1 min-w-[160px]"
+                    style={{
+                        left: versionContextMenu.x,
+                        top: versionContextMenu.y,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        onClick={() => {
+                            if (versionContextMenu) {
+                                setDeleteVersionConfirm({
+                                    versionId: versionContextMenu.versionId,
+                                    versionName: versionContextMenu.versionName,
+                                });
+                            }
+                        }}
+
+                        className="w-full px-4 py-2 text-left text-red-400 flex items-center gap-2 text-sm bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-700"
+                    >
+                        🗑️ Delete Version
+                    </button>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal - Notes */}
+            {deleteNoteConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                        onClick={() => setDeleteNoteConfirm(null)}
+                    />
+
+                    <div
+                        className="relative w-full max-w-md mx-4 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6">
+                            <div className="flex items-start gap-4 mb-6">
+                                <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
+                                    <span className="text-3xl">⚠️</span>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-lg font-semibold text-zinc-100">
+                                        Delete Note
+                                    </h3>
+                                    <p className="text-sm text-zinc-400">
+                                        This action cannot be undone.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="rounded-lg bg-zinc-800 p-4 mb-6 border border-zinc-700">
+                                <p className="text-zinc-300 mb-1">
+                                    Are you sure you want to delete this note?
+                                </p>
+                                <p className="font-semibold text-zinc-100 truncate">
+                                    "{deleteNoteConfirm.subject}"
+                                </p>
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteNoteConfirm(null);
+                                    }}
+                                    className="px-4 py-2 rounded-lg text-zinc-200 transition-colors font-medium bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-600"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setIsDeletingNote(true);
+                                        try {
+                                            await handleDeleteNote(deleteNoteConfirm.noteId);
+                                            setDeleteNoteConfirm(null);
+                                            fetchNotes();
+                                        } catch (error) {
+                                            // handle error if needed
+                                        } finally {
+                                            setIsDeletingNote(false);
+                                        }
+                                    }}
+                                    disabled={isDeletingNote}
+                                    className="px-4 py-2 rounded-lg text-white transition-colors font-medium bg-gradient-to-r from-red-800 to-red-800 hover:from-red-700 hover:to-red-600 disabled:opacity-50"
+                                >
+                                    {isDeletingNote ? (
+                                        <div className="flex items-center gap-2">
+                                            <LoaderCircle className="w-4 h-4 animate-spin" />
+                                            Deleting...
+                                        </div>
+                                    ) : (
+                                        'Delete Note'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal - Versions */}
+            {deleteVersionConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                        onClick={() => setDeleteVersionConfirm(null)}
+                    />
+
+                    <div
+                        className="relative w-full max-w-md mx-4 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6">
+                            <div className="flex items-start gap-4 mb-6">
+                                <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
+                                    <span className="text-3xl">⚠️</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-zinc-100">Delete Version</h3>
+                                    <p className="text-sm text-zinc-400">This action cannot be undone.</p>
+                                </div>
+                            </div>
+
+                            <div className="rounded-lg bg-zinc-800 p-4 mb-6 border border-zinc-700">
+                                <p className="text-zinc-300 mb-1">Are you sure you want to delete this version?</p>
+                                <p className="font-semibold text-zinc-100 truncate">
+                                    "{deleteVersionConfirm.versionName}"
+                                </p>
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteVersionConfirm(null);
+                                    }}
+                                    className="px-4 py-2 rounded-lg text-zinc-200 transition-colors font-medium bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-600"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        setIsDeletingVersion(true);
+                                        try {
+                                            await axios.delete(
+                                                `${ENDPOINTS.DELETE_ASSET_VERSION}/${deleteVersionConfirm.versionId}`,
+                                                { data: { entityId: AssetID } }
+                                            );
+                                            setDeleteVersionConfirm(null);
+                                            await fetchAssetVersions();
+                                        } catch {
+                                            alert('ไม่สามารถลบได้');
+                                        } finally {
+                                            setIsDeletingVersion(false);
+                                        }
+                                    }}
+                                    disabled={isDeletingVersion}
+                                    className="px-4 py-2 rounded-lg text-white transition-colors font-medium bg-gradient-to-r from-red-800 to-red-800 hover:from-red-700 hover:to-red-600 disabled:opacity-50"
+                                >
+                                    {isDeletingVersion ? (
+                                        <div className="flex items-center gap-2">
+                                            <LoaderCircle className="w-4 h-4 animate-spin" />
+                                            Deleting...
+                                        </div>
+                                    ) : (
+                                        'Delete Version'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Right Panel - Task Details */}
+            <RightPanel
+                selectedTask={selectedTask}
+                isPanelOpen={isPanelOpen && !selectedNote}
+                rightPanelWidth={rightPanelWidth}
+                activeTab={rightPanelActiveTab}
+                taskVersions={taskVersions}
+                isLoadingVersions={isLoadingVersions}
+                projectUsers={allPeople.map(p => ({ id: p.id, username: p.name }))}
+                onClose={() => {
+                    setIsPanelOpen(false);
+                    setTimeout(() => setSelectedTask(null), 300);
+                }}
+                onResize={handleMouseDown}
+                onTabChange={setRightPanelActiveTab}
+                onUpdateVersion={updateVersion}
+                onAddVersionSuccess={async () => {
+                    if (selectedTask) await fetchTaskVersions(selectedTask.id);
+                    await fetchAssetVersions();
+                }}
+                // Others_Asset
+                onDeleteVersionSuccess={async (newThumb) => {
+                    if (selectedTask) await fetchTaskVersions(selectedTask.id);
+                    await fetchAssetVersions();
+                    if (newThumb !== undefined) {
+                        const url = newThumb || '';
+                        setAssetData(prev => prev ? { ...prev, thumbnail: url } : prev);
+                        const stored = JSON.parse(localStorage.getItem('selectedAsset') || '{}');
+                        localStorage.setItem('selectedAsset', JSON.stringify({ ...stored, file_url: url, thumbnail: url }));
+                    }
+                }}
+            />
+
+
+            {showAddShot && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => !isCreatingShot && setShowAddShot(false)}
+                    />
+                    <div className="relative w-full max-w-lg bg-gradient-to-br from-[#0f1729] via-[#162038] to-[#0d1420] rounded-2xl shadow-2xl shadow-blue-900/50 border border-blue-500/20 overflow-hidden">
+
+                        {/* Header */}
+                        <div className="px-6 py-4 bg-gradient-to-r from-[#1e3a5f] via-[#1a2f4d] to-[#152640] border-b border-blue-500/30 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-base font-semibold text-gray-100">Create Shot</h2>
+                                <p className="text-xs text-blue-300/60 mt-0.5">
+                                    Linked to: <span className="text-blue-300 font-medium">{assetData?.asset_name}</span>
+                                </p>
+                            </div>
+                            <div
+                                onClick={() => !isCreatingShot && setShowAddShot(false)}
+                                className="cursor-pointer text-gray-500 hover:text-gray-200 text-xl leading-none transition-colors"
+                            >×</div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-4">
+
+                            {/* Shot Name */}
+                            <div className="grid grid-cols-[130px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">
+                                    Shot Name <span className="text-red-400">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. SH010"
+                                    value={createShotForm.shot_name}
+                                    onChange={(e) => setCreateShotForm(p => ({ ...p, shot_name: e.target.value }))}
+                                    autoFocus
+                                    className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-600 transition-colors"
+                                />
+                            </div>
+
+                            {/* Link to Asset (read-only) */}
+                            <div className="grid grid-cols-[130px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">Link to Asset</label>
+                                <div className="h-9 px-3 bg-white/4 border border-blue-500/10 rounded-lg text-gray-500 text-sm flex items-center gap-2 select-none">
+                                    <span className="flex-1 truncate w-1">
+                                        {assetData?.asset_name}
+                                    </span>
+                                    <span className="ml-auto text-[10px] text-green-400/80 flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 whitespace-nowrap">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>
+                                        auto-linked
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Project (read-only) */}
+                            <div className="grid grid-cols-[130px_1fr] gap-4 items-center">
+                                <label className="text-sm text-gray-300 text-right">Project</label>
+                                <div className="h-9 px-3 bg-white/4 border border-blue-500/10 rounded-lg text-gray-500 text-sm flex items-center select-none">
+                                    {projectData?.projectName || 'Unknown Project'}
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div className="grid grid-cols-[130px_1fr] gap-4 items-start">
+                                <label className="text-sm text-gray-300 text-right pt-2">Description</label>
+                                <textarea
+                                    placeholder="Optional description..."
+                                    value={createShotForm.description}
+                                    onChange={(e) => setCreateShotForm(p => ({ ...p, description: e.target.value }))}
+                                    rows={3}
+                                    className="px-3 py-2 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 placeholder:text-gray-600 resize-none transition-colors"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 bg-gradient-to-r from-[#0a1018] to-[#0d1420] border-t border-blue-500/20 flex items-center justify-between">
+                            <button
+                                onClick={() => setShowAddShot(false)}
+                                disabled={isCreatingShot}
+                                className="px-4 h-9 flex items-center bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white text-sm rounded-lg disabled:opacity-50 transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreateShot}
+                                disabled={isCreatingShot || !createShotForm.shot_name.trim()}
+                                className="px-5 h-9 bg-gradient-to-r from-[#1e88e5] to-[#1565c0] hover:from-[#1976d2] hover:to-[#0d47a1] text-white text-sm rounded-lg font-medium shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+                            >
+                                {isCreatingShot ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span>Creating...</span>
+                                    </>
+                                ) : 'Create Shot'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedNote && (
+                <RightPanelNote
+                    selectedNote={selectedNote}
+                    isPanelOpen={isNotePanelOpen}
+                    rightPanelWidth={rightPanelWidth}
+                    entityName={assetData?.asset_name ?? ''}
+                    entityLabel="Asset"
+                    onClose={() => {
+                        setIsNotePanelOpen(false);
+                        setTimeout(() => setSelectedNote(null), 300);
+                    }}
+                    onResize={handleMouseDown}
+                />
+            )}
+
+        </div>
+    );
+}
+
+const InfoRow = ({ label, value }: { label: string; value: string }) => (
+    <div>
+        <p className="text-sm text-gray-400">{label}</p>
+        <p className="text-gray-200">{value}</p>
+    </div>
+);
