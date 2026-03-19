@@ -472,7 +472,7 @@ export default function Project_Detail() {
                                         onChange={(e) => setFilterStatus(e.target.value)}
                                         className="appearance-none bg-gradient-to-br from-gray-700 to-gray-800 border border-gray-600 rounded-lg pl-4 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-200 cursor-pointer hover:from-gray-600 hover:to-gray-700 hover:border-purple-500/50 shadow-lg"
                                     >
-                                        <option value="all" className="bg-gray-800">All500000000</option>
+                                        <option value="all" className="bg-gray-800">All</option>
                                         <option value="wtg" className="bg-gray-800">Waiting to Start</option>
                                         <option value="ip" className="bg-gray-800">In Progress</option>
                                         <option value="fin" className="bg-gray-800">Final</option>
