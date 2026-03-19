@@ -1,8 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useRef, useState } from 'react';
-import { Paperclip, Send, Trash2, User, X } from 'lucide-react';
+import { Eye, Paperclip, Send, Trash2, User, X } from 'lucide-react';
 import ENDPOINTS from '../config';
+import { createPortal } from 'react-dom';
 
 interface Note {
     id: number;
@@ -102,93 +103,82 @@ interface FileGridProps {
 }
 
 const FileGrid: React.FC<FileGridProps> = ({ urls, maxThumbHeight = 'max-h-56' }) => {
-    // safety: ensure urls is always a real array
+    const [lightbox, setLightbox] = useState<string | null>(null);
+
     const safeUrls = Array.isArray(urls) ? urls.filter(Boolean) : [];
     if (safeUrls.length === 0) return null;
-    // shadow the prop so the rest of the component uses safeUrls
     urls = safeUrls;
 
-    // single file → existing behaviour (centred, full width)
-    if (urls.length === 1) {
-        const url = urls[0];
-        const full = ENDPOINTS.image_url + url;
-        if (isVid(url)) {
-            return (
-                <video
-                    src={full}
-                    className={`${maxThumbHeight} rounded-lg object-contain`}
-                    controls
-                />
-            );
-        }
-        if (isImage(url)) {
-            return (
-                <img
-                    src={full}
-                    alt=""
-                    className={`${maxThumbHeight} rounded-lg object-contain`}
-                />
-            );
-        }
-        return (
-            <a
-                href={full}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm transition-all"
-            >
-                <Paperclip className="w-4 h-4" />
-                ดูไฟล์แนบ
-            </a>
-        );
-    }
-
-    // multiple files → grid layout
-    // images/videos: 2-col responsive grid; other files: list
     const mediaUrls = urls.filter(u => isImage(u) || isVid(u));
     const otherUrls = urls.filter(u => !isImage(u) && !isVid(u));
 
+    const renderMedia = (url: string, i: number) => {
+        const full = ENDPOINTS.image_url + url;
+        return isVid(url) ? (
+            <div key={i} className={`relative overflow-hidden rounded-lg ${mediaUrls.length === 1 ? maxThumbHeight : 'h-40'}`}>
+                <video src={full} className="w-full h-full object-cover" controls />
+            </div>
+        ) : (
+            <div
+                key={i}
+                className={`relative overflow-hidden rounded-lg cursor-pointer group ${mediaUrls.length === 1 ? maxThumbHeight : 'h-40'}`}
+                onClick={() => setLightbox(full)}
+            >
+                <img src={full} alt="" className="absolute inset-0 w-full h-full object-cover scale-110 blur-md opacity-50 pointer-events-none" aria-hidden="true" />
+                <img src={full} alt="" className="relative w-full h-full object-contain z-10 transition-transform duration-200 group-hover:scale-105" />
+                <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
+                    <div className="p-2 rounded-full bg-black/50 backdrop-blur-sm">
+                        <Eye className="w-5 h-5 text-white" />
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
-        <div className="w-full space-y-2">
-            {mediaUrls.length > 0 && (
-                <div className={`grid gap-1.5 ${mediaUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                    {mediaUrls.map((url, i) => {
-                        const full = ENDPOINTS.image_url + url;
-                        return isVid(url) ? (
-                            <video
+        <>
+            <div className="w-full space-y-2">
+                {mediaUrls.length > 0 && (
+                    <div className={`grid gap-1.5 ${mediaUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                        {mediaUrls.map((url, i) => renderMedia(url, i))}
+                    </div>
+                )}
+                {otherUrls.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                        {otherUrls.map((url, i) => (
+                            <a
                                 key={i}
-                                src={full}
-                                controls
-                                className="w-full max-h-40 rounded-lg object-cover bg-black"
-                            />
-                        ) : (
-                            <img
-                                key={i}
-                                src={full}
-                                alt=""
-                                className="w-full max-h-40 rounded-lg object-cover"
-                            />
-                        );
-                    })}
-                </div>
+                                href={ENDPOINTS.image_url + url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm transition-all"
+                            >
+                                <Paperclip className="w-4 h-4 flex-shrink-0" />
+                                <span className="truncate">{url.split('/').pop()}</span>
+                            </a>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Portal lightbox → render ตรง document.body เลย ไม่ติด z-index ของ parent */}
+            {lightbox && createPortal(
+                <div
+                    className="fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+                    style={{ zIndex: 99999 }}
+                    onClick={() => setLightbox(null)}
+                >
+                
+                    <img
+                        src={lightbox}
+                        alt=""
+                        className="max-w-[90vw] max-h-[90vh] object-contain rounded-xl shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>,
+                document.body
             )}
-            {otherUrls.length > 0 && (
-                <div className="flex flex-col gap-1">
-                    {otherUrls.map((url, i) => (
-                        <a
-                            key={i}
-                            href={ENDPOINTS.image_url + url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 text-sm transition-all"
-                        >
-                            <Paperclip className="w-4 h-4 flex-shrink-0" />
-                            <span className="truncate">{url.split('/').pop()}</span>
-                        </a>
-                    ))}
-                </div>
-            )}
-        </div>
+        </>
     );
 };
 

@@ -3,8 +3,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import {
-  Film, FileVideo, Search, ChevronLeft, ChevronRight,
-  Check, Eye, AlertCircle,
+  Film, FileVideo, Search,
+  ChevronLeft, ChevronRight,
+  Eye, AlertCircle, X, ZoomIn,
 } from 'lucide-react';
 import Navbar_Project from "../../components/Navbar_Project";
 import axios from "axios";
@@ -37,6 +38,10 @@ type TabKey = 'all' | 'asset' | 'shot';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE_OPTIONS = [25, 50, 75, 100, 200];
+
+// Fixed thumbnail cell size (px)
+const THUMB_W = 104;
+const THUMB_H = 56; // h-14 = 56px
 
 const EXT_CLASS: Record<string, string> = {
   mov:  'bg-red-500/10 border border-red-500/30 text-red-400',
@@ -71,6 +76,17 @@ const VERSION_STATUS_LABEL: Record<string, string> = {
 
 const VIDEO_EXT = /^(mp4|webm|mov|avi|mkv|m4v|ogv|flv|wmv|3gp|ts|mts|m2ts)$/;
 const IMAGE_EXT = /^(jpg|jpeg|png|gif|webp|bmp|tiff?|svg|avif|heic|heif)$/;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: resolve full thumbnail URL
+// ─────────────────────────────────────────────────────────────────────────────
+
+function resolveThumbSrc(thumb: string | null): string | null {
+  if (!thumb) return null;
+  if (thumb.startsWith('http')) return thumb;
+  const base = (ENDPOINTS.image_url ?? '').replace(/\/$/, '');
+  return `${base}/${thumb.replace(/^\//, '')}`;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data mapper
@@ -125,7 +141,201 @@ function mapFile(raw: any): ProjectFile {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Small reusable components
+// PreviewModal — full-size image/video overlay
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PreviewModalProps {
+  file: ProjectFile;
+  src: string;
+  onClose: () => void;
+}
+
+function PreviewModal({ file, src, onClose }: PreviewModalProps) {
+  const ext     = file.ext.toLowerCase();
+  const isVideo = VIDEO_EXT.test(ext);
+  const cacheBusted = src.includes('?') ? `${src}&_cb=1` : `${src}?_cb=1`;
+
+  // Close on Escape key
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      style={{ top: 112 }}
+      onClick={onClose}
+    >
+      <div
+        className="relative max-w-4xl w-full mx-4 rounded-lg overflow-hidden bg-[#1a1d22] border border-gray-700 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700 bg-[#20242a]">
+          <span className="text-gray-300 text-xs font-mono truncate max-w-[80%]">{file.name}</span>
+          <div
+            onClick={onClose}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-700 text-gray-500 hover:text-gray-200 transition-colors cursor-pointer"
+          >
+            <X size={14} />
+          </div>
+        </div>
+
+        {/* Media area */}
+        <div className="relative min-h-[200px] max-h-[75vh] overflow-hidden flex items-center justify-center bg-[#12151a]">
+          {/* blurred background */}
+          {isVideo ? (
+            <video
+              src={cacheBusted}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(20px)', transform: 'scale(1.1)', opacity: 0.5 }}
+              muted loop autoPlay playsInline
+              aria-hidden
+            />
+          ) : (
+            <img
+              src={cacheBusted}
+              alt=""
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(20px)', transform: 'scale(1.1)', opacity: 0.5 }}
+              aria-hidden
+            />
+          )}
+          <div className="absolute inset-0 bg-black/40" />
+          {/* actual media — contain */}
+          {isVideo ? (
+            <video
+              src={cacheBusted}
+              className="relative z-10 max-w-full max-h-[75vh] object-contain"
+              controls autoPlay muted loop playsInline
+            />
+          ) : (
+            <img
+              src={cacheBusted}
+              alt={file.name}
+              className="relative z-10 max-w-full max-h-[75vh] object-contain"
+            />
+          )}
+        </div>
+
+        {/* Footer metadata */}
+        <div className="flex items-center gap-3 px-4 py-2 border-t border-gray-700 bg-[#20242a] text-[11px] text-gray-500">
+          <span>{file.user}</span>
+          <span>·</span>
+          <span>{file.date}</span>
+          {file.status && (
+            <>
+              <span>·</span>
+              <span className={`px-1.5 py-px rounded border text-[10px] font-semibold
+                ${VERSION_STATUS_CLASS[file.status.toLowerCase()] ?? 'bg-gray-700/40 border-gray-600 text-gray-400'}`}
+              >
+                {VERSION_STATUS_LABEL[file.status.toLowerCase()] ?? file.status}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ThumbCell — fixed-size thumbnail, blur fallback on error, click to preview
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ThumbCellProps {
+  file: ProjectFile;
+  onPreview: () => void;
+}
+
+function ThumbCell({ file, onPreview }: ThumbCellProps) {
+  const [failed, setFailed] = useState(false);
+
+  const ext     = file.ext.toLowerCase();
+  const isImage = IMAGE_EXT.test(ext);
+  const isVideo = VIDEO_EXT.test(ext);
+  const src     = resolveThumbSrc(file.thumb);
+
+  const fixedSize = { width: THUMB_W, height: THUMB_H, minWidth: THUMB_W, minHeight: THUMB_H };
+
+  // ── No source / non-media type ─────────────────────────────────────────
+  if (!src || (!isImage && !isVideo)) {
+    return (
+      <div style={fixedSize} className="rounded bg-[#15181c] border border-gray-700 flex flex-col items-center justify-center gap-1 shrink-0">
+        {isVideo
+          ? <Film      size={18} className="text-sky-800" />
+          : <FileVideo size={18} className="text-gray-600" />}
+        {ext && <span className="text-[9px] uppercase tracking-widest text-gray-600">{ext}</span>}
+      </div>
+    );
+  }
+
+  // ── Load failed → blurred placeholder ────────────────────────────────
+  if (failed) {
+    return (
+      <div style={fixedSize} className="rounded border border-gray-700 flex flex-col items-center justify-center gap-1 shrink-0 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-700/40 to-gray-800/60 backdrop-blur-md" />
+        <div className="relative z-10 flex flex-col items-center gap-1">
+          <FileVideo size={16} className="text-gray-500" />
+          <span className="text-[9px] text-gray-500 uppercase tracking-widest">no preview</span>
+        </div>
+      </div>
+    );
+  }
+
+  const cacheBusted = src.includes('?') ? `${src}&_cb=1` : `${src}?_cb=1`;
+
+  // ── Clickable media thumbnail ─────────────────────────────────────────
+  return (
+    <div
+      style={fixedSize}
+      className="rounded border border-gray-700 overflow-hidden shrink-0 relative group cursor-pointer"
+      onClick={e => { e.stopPropagation(); onPreview(); }}
+    >
+      {/* blurred background layer — stretched cover */}
+      {isVideo ? (
+        <video
+          src={cacheBusted}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(8px)', transform: 'scale(1.1)', display: 'block' }}
+          muted loop autoPlay playsInline preload="auto"
+          aria-hidden
+        />
+      ) : (
+        <img
+          src={cacheBusted}
+          alt=""
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(8px)', transform: 'scale(1.1)', display: 'block' }}
+          aria-hidden
+        />
+      )}
+      {/* dark tint on top of blur */}
+      <div className="absolute inset-0 bg-black/30" />
+      {/* actual media — contain (show full) */}
+      {isVideo ? (
+        <video
+          src={cacheBusted}
+          style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+          muted loop autoPlay playsInline preload="auto"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <img
+          src={cacheBusted}
+          alt="thumb"
+          style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+          onError={() => setFailed(true)}
+        />
+      )}
+      {/* hover overlay with zoom icon */}
+      <div className="absolute inset-0 z-10 bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
+        <ZoomIn size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Small reusable UI components
 // ─────────────────────────────────────────────────────────────────────────────
 
 function FileIcon({ ext }: { ext: string }) {
@@ -137,23 +347,11 @@ function FileIcon({ ext }: { ext: string }) {
   );
 }
 
-function VideoThumb({ src }: { src: string }) {
-  const cacheBusted = src.includes('?') ? `${src}&_cb=1` : `${src}?_cb=1`;
-  return (
-    <video
-      src={cacheBusted}
-      className="h-14 w-auto max-w-[104px] rounded object-cover border border-gray-600"
-      muted loop autoPlay playsInline preload="auto"
-      onError={e => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}
-    />
-  );
-}
-
 function TabBtn({ label, count, active, onClick }: {
   label: string; count: number; active: boolean; onClick: () => void;
 }) {
   return (
-    <div
+    <button
       onClick={onClick}
       className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded transition-colors border
         ${active
@@ -165,7 +363,7 @@ function TabBtn({ label, count, active, onClick }: {
       <span className={`px-1.5 py-px rounded-full text-[10px] ${active ? 'bg-blue-700/60 text-blue-200' : 'bg-gray-700 text-gray-400'}`}>
         {count}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -212,12 +410,15 @@ export default function ProjectFiles() {
   const [error,      setError]      = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<TabKey>('all');
-  const [selected,  setSelected]  = useState<Set<number | string>>(new Set());
   const [search,    setSearch]    = useState('');
   const [page,      setPage]      = useState(1);
   const [pageSize,  setPageSize]  = useState(25);
   const [sortCol,   setSortCol]   = useState<keyof ProjectFile>('date');
   const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>('desc');
+
+  // Preview modal state
+  const [previewFile, setPreviewFile] = useState<ProjectFile | null>(null);
+  const [previewSrc,  setPreviewSrc]  = useState<string>('');
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -284,16 +485,6 @@ export default function ProjectFiles() {
   const paged      = sorted.slice((page - 1) * pageSize, page * pageSize);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  const toggleRow = (id: number | string) =>
-    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-
-  const toggleAll = () =>
-    setSelected(prev =>
-      prev.size === paged.length && paged.length > 0
-        ? new Set()
-        : new Set(paged.map(f => f.id))
-    );
-
   const handleSort = (col: keyof ProjectFile) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortCol(col); setSortDir('asc'); }
@@ -303,7 +494,18 @@ export default function ProjectFiles() {
   const handleTabChange = (tab: TabKey) => {
     setActiveTab(tab);
     setPage(1);
-    setSelected(new Set());
+  };
+
+  const openPreview = (file: ProjectFile) => {
+    const src = resolveThumbSrc(file.thumb);
+    if (!src) return;
+    setPreviewFile(file);
+    setPreviewSrc(src);
+  };
+
+  const closePreview = () => {
+    setPreviewFile(null);
+    setPreviewSrc('');
   };
 
   // ── Sort arrow helper ──────────────────────────────────────────────────────
@@ -311,34 +513,6 @@ export default function ProjectFiles() {
     sortCol === col
       ? <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
       : null;
-
-  // ── Thumbnail cell renderer ────────────────────────────────────────────────
-  const renderThumb = (file: ProjectFile) => {
-    const ext     = file.ext.toLowerCase();
-    const isImage = IMAGE_EXT.test(ext);
-    const isVideo = VIDEO_EXT.test(ext);
-
-    const base = (ENDPOINTS.image_url ?? '').replace(/\/$/, '');
-    const src  = file.thumb
-      ? (file.thumb.startsWith('http') ? file.thumb : `${base}/${file.thumb.replace(/^\//, '')}`)
-      : null;
-
-    if (src && isImage) return (
-      <img src={src} alt="thumb"
-        className="h-14 w-auto max-w-[104px] rounded object-cover border border-gray-600"
-        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-      />
-    );
-
-    if (src && isVideo) return <VideoThumb src={src} />;
-
-    return (
-      <div className="h-14 w-[104px] rounded bg-[#15181c] border border-gray-700 flex flex-col items-center justify-center gap-1">
-        {isVideo ? <Film size={18} className="text-sky-800" /> : <FileVideo size={18} className="text-gray-600" />}
-        {ext && <span className="text-[9px] uppercase tracking-widest text-gray-600">{ext}</span>}
-      </div>
-    );
-  };
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -400,27 +574,19 @@ export default function ProjectFiles() {
         {/* Table */}
         {!loading && !error && allFiles.length > 0 && (
           <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+            {/* col order: file name | thumbnail | links | status | description | created by | date */}
             <colgroup>
-              <col style={{ width: 32 }} />       {/* Checkbox */}
-              <col style={{ width: '28%' }} />    {/* File name */}
-              <col style={{ width: 120 }} />      {/* Thumbnail */}
-              <col style={{ width: '20%' }} />    {/* Links */}
-              <col style={{ width: 80 }} />       {/* Status */}
-              <col style={{ width: '18%' }} />    {/* Description */}
-              <col style={{ width: '16%' }} />    {/* Created by */}
-              <col style={{ width: 148 }} />      {/* Date */}
+              <col style={{ width: '28%' }} />
+              <col style={{ width: 120 }} />
+              <col style={{ width: '20%' }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: 148 }} />
             </colgroup>
 
             <thead>
               <tr className="bg-[#20242a] border-b-2 border-gray-700 sticky top-0 z-10">
-                <Th>
-                  <input
-                    type="checkbox"
-                    checked={selected.size === paged.length && paged.length > 0}
-                    onChange={toggleAll}
-                    className="accent-blue-500 cursor-pointer"
-                  />
-                </Th>
                 <Th onClick={() => handleSort('name')} sortable>File <Arrow col="name" /></Th>
                 <Th>Thumbnail</Th>
                 <Th>Links</Th>
@@ -433,26 +599,13 @@ export default function ProjectFiles() {
 
             <tbody>
               {paged.map((file, i) => {
-                const isSel   = selected.has(file.id);
-                const rowBase = isSel
-                  ? 'bg-blue-900/20'
-                  : i % 2 === 0 ? 'bg-[#1c1f23]' : 'bg-[#1e2227]';
+                const rowBase = i % 2 === 0 ? 'bg-[#1c1f23]' : 'bg-[#1e2227]';
 
                 return (
                   <tr
                     key={`${file.source}-${file.id}`}
-                    onClick={() => toggleRow(file.id)}
-                    className={`${rowBase} border-b border-gray-800 cursor-pointer hover:bg-[#252b33] transition-colors`}
+                    className={`${rowBase} border-b border-gray-800 hover:bg-[#252b33] transition-colors`}
                   >
-
-                    {/* Checkbox */}
-                    <td className="px-2.5 align-middle">
-                      <div className={`w-4 h-4 rounded flex items-center justify-center border transition-colors
-                        ${isSel ? 'bg-blue-500 border-blue-500' : 'bg-transparent border-gray-600'}`}
-                      >
-                        {isSel && <Check size={10} className="text-white" strokeWidth={3} />}
-                      </div>
-                    </td>
 
                     {/* File name */}
                     <td className="px-2.5 py-2 align-middle">
@@ -464,9 +617,9 @@ export default function ProjectFiles() {
                       </div>
                     </td>
 
-                    {/* Thumbnail */}
+                    {/* Thumbnail — click to preview */}
                     <td className="px-2.5 py-1.5 align-middle">
-                      {renderThumb(file)}
+                      <ThumbCell file={file} onPreview={() => openPreview(file)} />
                     </td>
 
                     {/* Links */}
@@ -532,14 +685,9 @@ export default function ProjectFiles() {
       {!loading && !error && allFiles.length > 0 && (
         <div className="flex items-center justify-between px-4 py-1.5 border-t border-gray-700 bg-[#20242a] shrink-0 text-[11px] text-gray-500">
 
-          {/* Left: count + selection info */}
-          <span className="flex items-center gap-2">
+          {/* Left: count */}
+          <span>
             {total === 0 ? '0' : `${(page - 1) * pageSize + 1} – ${Math.min(page * pageSize, total)}`} of {total} Files
-            {selected.size > 0 && (
-              <span className="text-blue-400 bg-blue-900/40 px-2 py-0.5 rounded">
-                {selected.size} selected
-              </span>
-            )}
           </span>
 
           {/* Right: page size + page navigation */}
@@ -587,6 +735,12 @@ export default function ProjectFiles() {
           </div>
         </div>
       )}
+
+      {/* Preview modal */}
+      {previewFile && previewSrc && (
+        <PreviewModal file={previewFile} src={previewSrc} onClose={closePreview} />
+      )}
+
     </div>
   );
 }

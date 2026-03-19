@@ -1042,12 +1042,12 @@ export default function Project_Version() {
                                     )}
                                 </div>
                             </div>
-                            <button
+                            <div
                                 onClick={() => setThumbnailVersion(null)}
-                                className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+                                className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer"
                             >
                                 <X className="w-4 h-4 text-gray-400" />
-                            </button>
+                            </div>
                         </div>
 
                         {/* Image */}
