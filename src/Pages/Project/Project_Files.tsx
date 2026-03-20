@@ -29,6 +29,7 @@ interface ProjectFile {
   name: string;
   ext: string;
   thumb: string | null;
+  downloadUrl: string;
   link: string;
   linkType: 'asset' | 'shot' | string;
   status: string;
@@ -140,6 +141,7 @@ function mapFile(raw: any): ProjectFile {
   return {
     id: raw.id ?? Math.random(),
     name, ext, thumb,
+    downloadUrl: raw.download_url ?? '',
     link: linkStr,
     linkType: linked.type ?? raw.source ?? '',
     status: ver?.status ?? '',
@@ -257,6 +259,34 @@ export default function ProjectFiles() {
     if (!src) return;
     setPreviewFile(file);
     setPreviewSrc(src);
+  };
+
+  const handleDownload = async (file: ProjectFile) => {
+    if (!file.downloadUrl) return;
+    const base = (ENDPOINTS.image_url ?? '').replace(/\/$/, '');
+    const url = file.downloadUrl.startsWith('http')
+      ? file.downloadUrl
+      : `${base}/${file.downloadUrl.replace(/^\//, '')}`;
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      // fallback: direct link
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   };
 
   useEffect(() => {
@@ -452,9 +482,14 @@ export default function ProjectFiles() {
                     onMouseLeave={e => (e.currentTarget.style.background = rowBg)}
                   >
 
-                    {/* File name */}
+                    {/* File name — click to download */}
                     <td className="px-1.5 py-px align-middle">
-                      <div className="flex items-center gap-1 overflow-hidden">
+                      <div
+                        className="flex items-center gap-1 overflow-hidden group/name"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleDownload(file)}
+                        title={`Download ${file.name}`}
+                      >
                         <span
                           className={`inline-flex items-center justify-center rounded shrink-0 ${EXT_CLASS[ext] ?? 'bg-gray-500/10 border border-gray-500/30 text-gray-400'}`}
                           style={{ width: 14, height: 14, fontSize: 7 }}
@@ -462,7 +497,7 @@ export default function ProjectFiles() {
                           <Film size={7} />
                         </span>
                         <span
-                          className="overflow-hidden text-ellipsis whitespace-nowrap"
+                          className="overflow-hidden text-ellipsis whitespace-nowrap group-hover/name:underline"
                           style={{ fontSize: 10, color: '#7eb8f7', letterSpacing: '0.01em', fontWeight: 500 }}
                           title={file.name}
                         >
