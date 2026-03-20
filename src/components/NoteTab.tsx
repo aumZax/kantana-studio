@@ -358,9 +358,7 @@ const NotesTab = ({ notes: initialNotes, loadingNotes, onContextMenu, onNoteClic
                             <th className="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 <div className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /><span>ผู้รับมอบหมาย</span></div>
                             </th>
-                            <th className="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                <div className="flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" /><span>ไฟล์แนบ</span></div>
-                            </th>
+                          
                             <th className="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">สถานะการอ่าน</th>
                         </tr>
                     </thead>
@@ -517,16 +515,7 @@ const NotesTab = ({ notes: initialNotes, loadingNotes, onContextMenu, onNoteClic
                                     )}
                                 </td>
 
-                                {/* Attachment */}
-                                <td className="px-4 py-4">
-                                    {note.file_url ? (
-                                        <a href={ENDPOINTS.image_url + note.file_url} onClick={(e) => e.stopPropagation()} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-emerald-100 transition-all ring-1 ring-emerald-500/30" style={{ background: 'linear-gradient(to bottom right, #065f46, #047857)' }} onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = 'linear-gradient(to bottom right, #047857, #059669)'} onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'linear-gradient(to bottom right, #065f46, #047857)'}>
-                                            <Paperclip className="w-4 h-4" /><span className="text-xs font-medium">ดูไฟล์</span>
-                                        </a>
-                                    ) : (
-                                        <span className="text-gray-600 text-sm italic">ไม่มี</span>
-                                    )}
-                                </td>
+                            
 
                                 {/* Read Status */}
                                 <td className="px-4 py-4">
