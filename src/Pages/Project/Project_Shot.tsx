@@ -761,10 +761,10 @@ export default function ProjectShot() {
     );
 
     const handleCreateShot = async () => {
-        if (!shotName.trim() || !description.trim() || !taskTemplate) {
-            setError("Please fill in all required fields");
-            return;
-        }
+        if (!shotName.trim()) {
+    setError("Please fill in shot name");
+    return;
+}
 
         setLoading(true);
         setError('');
@@ -776,12 +776,12 @@ export default function ProjectShot() {
                 return;
             }
 
-            const payload = {
-                projectId: Number(projectData.projectId),
-                sequenceId: selectedSequence ? Number(selectedSequence.id) : null,
-                shotName: shotName.trim(),
-                description: description.trim(),
-            };
+           const payload = {
+    projectId: Number(projectData.projectId),
+    sequenceId: selectedSequence ? Number(selectedSequence.id) : null,
+    shotName: shotName.trim(),
+    description: description.trim() || null,
+};
 
             const { data } = await axios.post(ENDPOINTS.CREATESHOT, payload);
 
