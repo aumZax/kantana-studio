@@ -50,7 +50,7 @@ const THUMB_W = 52;
 const THUMB_H = 30;
 
 const VIDEO_EXT = /^(mp4|webm|mov|avi|mkv|m4v|ogv|flv|wmv|3gp|ts|mts|m2ts)$/;
-const IMAGE_EXT = /^(jpg|jpeg|png|gif|webp|bmp|tiff?|svg|avif|heic|heif)$/;
+const IMAGE_EXT = /^(jpg|jpeg|png|gif|webp|bmp|tiff?|svg|avif|heic|heif|jfif)$/;
 
 const EXT_CLASS: Record<string, string> = {
   mov:  'bg-red-500/10 border border-red-500/30 text-red-400',
