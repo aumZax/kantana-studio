@@ -51,6 +51,7 @@ export default function Home() {
     const [permission, setPermission] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [description, setDescription] = useState('');
+    const [searchText, setSearchText] = useState('');
 
 
     const canDeleteProject = ["Owner", "Admin"].includes(permission ?? "");
@@ -759,6 +760,8 @@ export default function Home() {
                         <input
                             type="text"
                             placeholder="Search Projects..."
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
                             className="w-40 md:w-56 lg:w-64 h-8 pl-3 pr-10 bg-gray-800/50 border border-gray-600/50 rounded-lg text-gray-200 text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500/80 focus:bg-gray-800/80 focus:shadow-lg focus:shadow-blue-500/20 transition-all duration-200"
                         />
                     </div>
@@ -921,8 +924,13 @@ export default function Home() {
                         {(() => {
                             const authUser = getAuthUser();
                             const currentUserUid = authUser?.id ?? authUser?.uid ?? authUser?.username ?? "admin";
-                            const myProjects = projectData.filter(p => p.creatorUid === currentUserUid);
-                            const sharedProjects = projectData.filter(p => p.creatorUid !== currentUserUid);
+                            const myProjects = projectData
+                                .filter(p => p.creatorUid === currentUserUid)
+                                .filter(p => p.name.toLowerCase().includes(searchText.toLowerCase()));
+
+                            const sharedProjects = projectData
+                                .filter(p => p.creatorUid !== currentUserUid)
+                                .filter(p => p.name.toLowerCase().includes(searchText.toLowerCase()));
 
                             return (
                                 <>
