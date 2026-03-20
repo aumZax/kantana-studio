@@ -1,16 +1,24 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
-import {
-  Film, FileVideo, Search,
-  ChevronLeft, ChevronRight,
-  Eye, AlertCircle, X, ZoomIn,
-} from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Film, FileVideo, Search, ChevronLeft, ChevronRight, Eye, AlertCircle, X, ZoomIn } from 'lucide-react';
 import Navbar_Project from "../../components/Navbar_Project";
 import axios from "axios";
 import ENDPOINTS from "../../config";
 import PixelLoadingSkeleton from '../../components/PixelLoadingSkeleton';
+
+// ── Native debounce hook (no external dependency) ──────────────────────────
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState<T>(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setDebounced(value), delay);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [value, delay]);
+  return debounced;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -38,10 +46,11 @@ type TabKey = 'all' | 'asset' | 'shot';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE_OPTIONS = [25, 50, 75, 100, 200];
-
-// Fixed thumbnail cell size (px)
 const THUMB_W = 104;
-const THUMB_H = 56; // h-14 = 56px
+const THUMB_H = 56;
+
+const VIDEO_EXT = /^(mp4|webm|mov|avi|mkv|m4v|ogv|flv|wmv|3gp|ts|mts|m2ts)$/;
+const IMAGE_EXT = /^(jpg|jpeg|png|gif|webp|bmp|tiff?|svg|avif|heic|heif)$/;
 
 const EXT_CLASS: Record<string, string> = {
   mov:  'bg-red-500/10 border border-red-500/30 text-red-400',
@@ -57,36 +66,31 @@ const EXT_CLASS: Record<string, string> = {
   zip:  'bg-neutral-500/10 border border-neutral-500/30 text-neutral-400',
 };
 
-const VERSION_STATUS_CLASS: Record<string, string> = {
-  wtg:      'bg-gray-700/50 border-gray-600/60 text-gray-400',
-  ip:       'bg-blue-900/40 border-blue-700/50 text-blue-300',
-  rev:      'bg-amber-900/40 border-amber-700/50 text-amber-400',
-  app:      'bg-emerald-900/40 border-emerald-700/50 text-emerald-400',
-  approved: 'bg-emerald-900/40 border-emerald-700/50 text-emerald-400',
-  pending:  'bg-amber-900/40 border-amber-700/50 text-amber-400',
-  rejected: 'bg-red-900/40 border-red-700/50 text-red-400',
+const VERSION_STATUS: Record<string, { fullLabel: string; dotColor: string; border: string; text: string; bg: string; icon: 'dot' | '-' }> = {
+  wtg:   { fullLabel: 'Waiting to Start', dotColor: 'bg-gray-600',    border: 'border-gray-500/50',    text: 'text-gray-300',    bg: 'bg-gray-600/15',    icon: '-'   },
+  ip:    { fullLabel: 'In Progress',       dotColor: 'bg-blue-500',    border: 'border-blue-400/50',    text: 'text-blue-300',    bg: 'bg-blue-500/15',    icon: 'dot' },
+  fin:   { fullLabel: 'Final',             dotColor: 'bg-green-500',   border: 'border-green-400/50',   text: 'text-green-300',   bg: 'bg-green-500/15',   icon: 'dot' },
+  apr:   { fullLabel: 'Approved',          dotColor: 'bg-green-500',   border: 'border-green-400/50',   text: 'text-green-300',   bg: 'bg-green-500/15',   icon: 'dot' },
+  cmpt:  { fullLabel: 'Complete',          dotColor: 'bg-blue-600',    border: 'border-blue-500/50',    text: 'text-blue-300',    bg: 'bg-blue-600/15',    icon: 'dot' },
+  cfrm:  { fullLabel: 'Confirmed',         dotColor: 'bg-purple-500',  border: 'border-purple-400/50',  text: 'text-purple-300',  bg: 'bg-purple-500/15',  icon: 'dot' },
+  nef:   { fullLabel: 'Need fixed',        dotColor: 'bg-red-500',     border: 'border-red-400/50',     text: 'text-red-300',     bg: 'bg-red-500/15',     icon: 'dot' },
+  dlvr:  { fullLabel: 'Delivered',         dotColor: 'bg-cyan-500',    border: 'border-cyan-400/50',    text: 'text-cyan-300',    bg: 'bg-cyan-500/15',    icon: 'dot' },
+  rts:   { fullLabel: 'Ready to Start',    dotColor: 'bg-orange-500',  border: 'border-orange-400/50',  text: 'text-orange-300',  bg: 'bg-orange-500/15',  icon: 'dot' },
+  rev:   { fullLabel: 'Pending Review',    dotColor: 'bg-yellow-600',  border: 'border-yellow-500/50',  text: 'text-yellow-300',  bg: 'bg-yellow-600/15',  icon: 'dot' },
+  omt:   { fullLabel: 'Omit',              dotColor: 'bg-gray-500',    border: 'border-gray-400/50',    text: 'text-gray-300',    bg: 'bg-gray-500/15',    icon: 'dot' },
+  ren:   { fullLabel: 'Rendering',         dotColor: 'bg-pink-500',    border: 'border-pink-400/50',    text: 'text-pink-300',    bg: 'bg-pink-500/15',    icon: 'dot' },
+  hld:   { fullLabel: 'On Hold',           dotColor: 'bg-orange-600',  border: 'border-orange-500/50',  text: 'text-orange-300',  bg: 'bg-orange-600/15',  icon: 'dot' },
+  vwd:   { fullLabel: 'Viewed',            dotColor: 'bg-teal-500',    border: 'border-teal-400/50',    text: 'text-teal-300',    bg: 'bg-teal-500/15',    icon: 'dot' },
+  crv:   { fullLabel: 'Client review',     dotColor: 'bg-purple-600',  border: 'border-purple-500/50',  text: 'text-purple-300',  bg: 'bg-purple-600/15',  icon: 'dot' },
+  na:    { fullLabel: 'N/A',               dotColor: 'bg-gray-400',    border: 'border-gray-300/50',    text: 'text-gray-200',    bg: 'bg-gray-400/15',    icon: '-'   },
+  pndng: { fullLabel: 'Pending',           dotColor: 'bg-yellow-400',  border: 'border-yellow-300/50',  text: 'text-yellow-200',  bg: 'bg-yellow-400/15',  icon: 'dot' },
+  cap:   { fullLabel: 'Client Approved',   dotColor: 'bg-green-400',   border: 'border-green-300/50',   text: 'text-green-200',   bg: 'bg-green-400/15',   icon: 'dot' },
+  recd:  { fullLabel: 'Received',          dotColor: 'bg-blue-400',    border: 'border-blue-300/50',    text: 'text-blue-200',    bg: 'bg-blue-400/15',    icon: 'dot' },
+  chk:   { fullLabel: 'Checking',          dotColor: 'bg-lime-500',    border: 'border-lime-400/50',    text: 'text-lime-300',    bg: 'bg-lime-500/15',    icon: 'dot' },
+  rdd:   { fullLabel: 'Render done',       dotColor: 'bg-emerald-500', border: 'border-emerald-400/50', text: 'text-emerald-300', bg: 'bg-emerald-500/15', icon: 'dot' },
+  srd:   { fullLabel: 'Submit render',     dotColor: 'bg-indigo-500',  border: 'border-indigo-400/50',  text: 'text-indigo-300',  bg: 'bg-indigo-500/15',  icon: 'dot' },
+  sos:   { fullLabel: 'Send outsource',    dotColor: 'bg-violet-500',  border: 'border-violet-400/50',  text: 'text-violet-300',  bg: 'bg-violet-500/15',  icon: 'dot' },
 };
-
-const VERSION_STATUS_LABEL: Record<string, string> = {
-  wtg: 'Waiting',
-  ip:  'In Progress',
-  rev: 'Review',
-  app: 'Approved',
-};
-
-const VIDEO_EXT = /^(mp4|webm|mov|avi|mkv|m4v|ogv|flv|wmv|3gp|ts|mts|m2ts)$/;
-const IMAGE_EXT = /^(jpg|jpeg|png|gif|webp|bmp|tiff?|svg|avif|heic|heif)$/;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: resolve full thumbnail URL
-// ─────────────────────────────────────────────────────────────────────────────
-
-function resolveThumbSrc(thumb: string | null): string | null {
-  if (!thumb) return null;
-  if (thumb.startsWith('http')) return thumb;
-  const base = (ENDPOINTS.image_url ?? '').replace(/\/$/, '');
-  return `${base}/${thumb.replace(/^\//, '')}`;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data mapper
@@ -97,12 +101,11 @@ function mapFile(raw: any): ProjectFile {
   const ext = name.includes('.') ? name.split('.').pop()!.toLowerCase() : '';
 
   const isMedia = VIDEO_EXT.test(ext) || IMAGE_EXT.test(ext);
-  const thumb: string | null =
-    raw.thumbnail_url ?? (isMedia ? (raw.download_url ?? null) : null);
+  const thumb: string | null = raw.thumbnail_url ?? (isMedia ? (raw.download_url ?? null) : null);
 
-  const linked = raw.linked_entity ?? {};
-  const linkName: string = linked.name ?? '—';
-  const linkStr = linkName.length > 26 ? linkName.slice(0, 24) + '…' : linkName;
+  const linked   = raw.linked_entity ?? {};
+  const linkName = linked.name ?? '—';
+  const linkStr  = linkName.length > 26 ? linkName.slice(0, 24) + '…' : linkName;
 
   const uploaderObj = raw.uploaded_by ?? {};
   const user = typeof uploaderObj === 'string'
@@ -126,276 +129,22 @@ function mapFile(raw: any): ProjectFile {
 
   return {
     id: raw.id ?? Math.random(),
-    name,
-    ext,
-    thumb,
+    name, ext, thumb,
     link: linkStr,
     linkType: linked.type ?? raw.source ?? '',
     status: ver?.status ?? '',
     desc: raw.description ?? '',
-    user,
-    date,
+    user, date,
     source: raw.source === 'shot' ? 'shot' : 'asset',
     version: versionLabel,
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PreviewModal — full-size image/video overlay
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface PreviewModalProps {
-  file: ProjectFile;
-  src: string;
-  onClose: () => void;
-}
-
-function PreviewModal({ file, src, onClose }: PreviewModalProps) {
-  const ext     = file.ext.toLowerCase();
-  const isVideo = VIDEO_EXT.test(ext);
-  const cacheBusted = src.includes('?') ? `${src}&_cb=1` : `${src}?_cb=1`;
-
-  // Close on Escape key
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  return (
-    <div
-      className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-      style={{ top: 112 }}
-      onClick={onClose}
-    >
-      <div
-        className="relative max-w-4xl w-full mx-4 rounded-lg overflow-hidden bg-[#1a1d22] border border-gray-700 shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700 bg-[#20242a]">
-          <span className="text-gray-300 text-xs font-mono truncate max-w-[80%]">{file.name}</span>
-          <div
-            onClick={onClose}
-            className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-700 text-gray-500 hover:text-gray-200 transition-colors cursor-pointer"
-          >
-            <X size={14} />
-          </div>
-        </div>
-
-        {/* Media area */}
-        <div className="relative min-h-[200px] max-h-[75vh] overflow-hidden flex items-center justify-center bg-[#12151a]">
-          {/* blurred background */}
-          {isVideo ? (
-            <video
-              src={cacheBusted}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(20px)', transform: 'scale(1.1)', opacity: 0.5 }}
-              muted loop autoPlay playsInline
-              aria-hidden
-            />
-          ) : (
-            <img
-              src={cacheBusted}
-              alt=""
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(20px)', transform: 'scale(1.1)', opacity: 0.5 }}
-              aria-hidden
-            />
-          )}
-          <div className="absolute inset-0 bg-black/40" />
-          {/* actual media — contain */}
-          {isVideo ? (
-            <video
-              src={cacheBusted}
-              className="relative z-10 max-w-full max-h-[75vh] object-contain"
-              controls autoPlay muted loop playsInline
-            />
-          ) : (
-            <img
-              src={cacheBusted}
-              alt={file.name}
-              className="relative z-10 max-w-full max-h-[75vh] object-contain"
-            />
-          )}
-        </div>
-
-        {/* Footer metadata */}
-        <div className="flex items-center gap-3 px-4 py-2 border-t border-gray-700 bg-[#20242a] text-[11px] text-gray-500">
-          <span>{file.user}</span>
-          <span>·</span>
-          <span>{file.date}</span>
-          {file.status && (
-            <>
-              <span>·</span>
-              <span className={`px-1.5 py-px rounded border text-[10px] font-semibold
-                ${VERSION_STATUS_CLASS[file.status.toLowerCase()] ?? 'bg-gray-700/40 border-gray-600 text-gray-400'}`}
-              >
-                {VERSION_STATUS_LABEL[file.status.toLowerCase()] ?? file.status}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ThumbCell — fixed-size thumbnail, blur fallback on error, click to preview
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface ThumbCellProps {
-  file: ProjectFile;
-  onPreview: () => void;
-}
-
-function ThumbCell({ file, onPreview }: ThumbCellProps) {
-  const [failed, setFailed] = useState(false);
-
-  const ext     = file.ext.toLowerCase();
-  const isImage = IMAGE_EXT.test(ext);
-  const isVideo = VIDEO_EXT.test(ext);
-  const src     = resolveThumbSrc(file.thumb);
-
-  const fixedSize = { width: THUMB_W, height: THUMB_H, minWidth: THUMB_W, minHeight: THUMB_H };
-
-  // ── No source / non-media type ─────────────────────────────────────────
-  if (!src || (!isImage && !isVideo)) {
-    return (
-      <div style={fixedSize} className="rounded bg-[#15181c] border border-gray-700 flex flex-col items-center justify-center gap-1 shrink-0">
-        {isVideo
-          ? <Film      size={18} className="text-sky-800" />
-          : <FileVideo size={18} className="text-gray-600" />}
-        {ext && <span className="text-[9px] uppercase tracking-widest text-gray-600">{ext}</span>}
-      </div>
-    );
-  }
-
-  // ── Load failed → blurred placeholder ────────────────────────────────
-  if (failed) {
-    return (
-      <div style={fixedSize} className="rounded border border-gray-700 flex flex-col items-center justify-center gap-1 shrink-0 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-700/40 to-gray-800/60 backdrop-blur-md" />
-        <div className="relative z-10 flex flex-col items-center gap-1">
-          <FileVideo size={16} className="text-gray-500" />
-          <span className="text-[9px] text-gray-500 uppercase tracking-widest">no preview</span>
-        </div>
-      </div>
-    );
-  }
-
-  const cacheBusted = src.includes('?') ? `${src}&_cb=1` : `${src}?_cb=1`;
-
-  // ── Clickable media thumbnail ─────────────────────────────────────────
-  return (
-    <div
-      style={fixedSize}
-      className="rounded border border-gray-700 overflow-hidden shrink-0 relative group cursor-pointer"
-      onClick={e => { e.stopPropagation(); onPreview(); }}
-    >
-      {/* blurred background layer — stretched cover */}
-      {isVideo ? (
-        <video
-          src={cacheBusted}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(8px)', transform: 'scale(1.1)', display: 'block' }}
-          muted loop autoPlay playsInline preload="auto"
-          aria-hidden
-        />
-      ) : (
-        <img
-          src={cacheBusted}
-          alt=""
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(8px)', transform: 'scale(1.1)', display: 'block' }}
-          aria-hidden
-        />
-      )}
-      {/* dark tint on top of blur */}
-      <div className="absolute inset-0 bg-black/30" />
-      {/* actual media — contain (show full) */}
-      {isVideo ? (
-        <video
-          src={cacheBusted}
-          style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-          muted loop autoPlay playsInline preload="auto"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <img
-          src={cacheBusted}
-          alt="thumb"
-          style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-          onError={() => setFailed(true)}
-        />
-      )}
-      {/* hover overlay with zoom icon */}
-      <div className="absolute inset-0 z-10 bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-colors">
-        <ZoomIn size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Small reusable UI components
-// ─────────────────────────────────────────────────────────────────────────────
-
-function FileIcon({ ext }: { ext: string }) {
-  const cls = EXT_CLASS[ext] ?? 'bg-gray-500/10 border border-gray-500/30 text-gray-400';
-  return (
-    <span className={`inline-flex items-center justify-center w-5 h-5 rounded shrink-0 ${cls}`}>
-      <Film size={11} />
-    </span>
-  );
-}
-
-function TabBtn({ label, count, active, onClick }: {
-  label: string; count: number; active: boolean; onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded transition-colors border
-        ${active
-          ? 'bg-blue-900/40 border-blue-600 text-blue-300'
-          : 'bg-transparent border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600'
-        }`}
-    >
-      {label}
-      <span className={`px-1.5 py-px rounded-full text-[10px] ${active ? 'bg-blue-700/60 text-blue-200' : 'bg-gray-700 text-gray-400'}`}>
-        {count}
-      </span>
-    </button>
-  );
-}
-
-function Th({ children, onClick, sortable }: {
-  children?: React.ReactNode; onClick?: () => void; sortable?: boolean;
-}) {
-  return (
-    <th
-      onClick={onClick}
-      className={`px-2.5 py-1.5 text-left font-semibold text-gray-500 text-[11px] tracking-wide whitespace-nowrap select-none
-        ${sortable ? 'cursor-pointer hover:text-gray-300' : 'cursor-default'}`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function PagBtn({ children, onClick, disabled, active }: {
-  children: React.ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`min-w-[26px] h-6 px-1.5 flex items-center justify-center rounded text-[11px] border transition-colors
-        ${active   ? 'border-blue-500 bg-blue-900/40 text-blue-300' : 'border-gray-600 bg-transparent text-gray-500 hover:text-gray-300'}
-        ${disabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}
-      `}
-    >
-      {children}
-    </button>
-  );
+function resolveThumbSrc(thumb: string | null): string | null {
+  if (!thumb) return null;
+  if (thumb.startsWith('http')) return thumb;
+  const base = (ENDPOINTS.image_url ?? '').replace(/\/$/, '');
+  return `${base}/${thumb.replace(/^\//, '')}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -403,24 +152,25 @@ function PagBtn({ children, onClick, disabled, active }: {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function ProjectFiles() {
-  // ── State ──────────────────────────────────────────────────────────────────
+
   const [assetFiles, setAssetFiles] = useState<ProjectFile[]>([]);
   const [shotFiles,  setShotFiles]  = useState<ProjectFile[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<TabKey>('all');
-  const [search,    setSearch]    = useState('');
-  const [page,      setPage]      = useState(1);
-  const [pageSize,  setPageSize]  = useState(25);
-  const [sortCol,   setSortCol]   = useState<keyof ProjectFile>('date');
-  const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>('desc');
-
-  // Preview modal state
+  const [activeTab,   setActiveTab]   = useState<TabKey>('all');
+  const [search,      setSearch]      = useState('');
+  const [page,        setPage]        = useState(1);
+  const [pageSize,    setPageSize]    = useState(25);
+  const [sortCol,     setSortCol]     = useState<keyof ProjectFile>('date');
+  const [sortDir,     setSortDir]     = useState<'asc' | 'desc'>('desc');
   const [previewFile, setPreviewFile] = useState<ProjectFile | null>(null);
-  const [previewSrc,  setPreviewSrc]  = useState<string>('');
+  const [previewSrc,  setPreviewSrc]  = useState('');
+
+  const [thumbFailed, setThumbFailed] = useState<Set<number | string>>(new Set());
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     const fetchFiles = async () => {
       setLoading(true);
@@ -430,28 +180,16 @@ export default function ProjectFiles() {
         let projectId: string | number | null = null;
         if (storedData) {
           const pd = JSON.parse(storedData);
-          projectId =
-            pd.projectId ?? pd.id ??
-            pd.projectInfo?.project?.id ??
-            pd.projectInfo?.projects?.[0]?.id ?? null;
+          projectId = pd.projectId ?? pd.id ?? pd.projectInfo?.project?.id ?? pd.projectInfo?.projects?.[0]?.id ?? null;
         }
-
-        const url = projectId
-          ? `${ENDPOINTS.ALL_PROJECT_FILES}?project_id=${projectId}`
-          : ENDPOINTS.ALL_PROJECT_FILES;
-
+        const url = projectId ? `${ENDPOINTS.ALL_PROJECT_FILES}?project_id=${projectId}` : ENDPOINTS.ALL_PROJECT_FILES;
         const res  = await axios.post(url);
         const data = res.data ?? {};
-
         setAssetFiles((data.asset_files ?? []).map(mapFile));
         setShotFiles((data.shot_files   ?? []).map(mapFile));
       } catch (err: any) {
-        if (err?.response?.status === 404) {
-          setAssetFiles([]);
-          setShotFiles([]);
-        } else {
-          setError(err?.response?.data?.message ?? err?.message ?? 'Failed to load files');
-        }
+        if (err?.response?.status === 404) { setAssetFiles([]); setShotFiles([]); }
+        else setError(err?.response?.data?.message ?? err?.message ?? 'Failed to load files');
       } finally {
         setLoading(false);
       }
@@ -459,42 +197,51 @@ export default function ProjectFiles() {
     fetchFiles();
   }, []);
 
-  // ── Derived data ───────────────────────────────────────────────────────────
-  const allFiles = [...assetFiles, ...shotFiles];
+  // ── Derived data (memoized for 3000+ file performance) ────────────────────
 
-  const tabFiles: Record<TabKey, ProjectFile[]> = {
-    all:   allFiles,
-    asset: assetFiles,
-    shot:  shotFiles,
-  };
+  const debouncedSearch = useDebounce(search, 200);
 
-  const filtered = tabFiles[activeTab].filter(f =>
-    f.name.toLowerCase().includes(search.toLowerCase()) ||
-    f.user.toLowerCase().includes(search.toLowerCase()) ||
-    f.link.toLowerCase().includes(search.toLowerCase())
+  const allFiles = useMemo(() => [...assetFiles, ...shotFiles], [assetFiles, shotFiles]);
+
+  const tabFiles = useMemo<Record<TabKey, ProjectFile[]>>(() => ({
+    all: allFiles, asset: assetFiles, shot: shotFiles,
+  }), [allFiles, assetFiles, shotFiles]);
+
+  const filtered = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    if (!q) return tabFiles[activeTab];
+    return tabFiles[activeTab].filter(f =>
+      f.name.toLowerCase().includes(q) ||
+      f.user.toLowerCase().includes(q) ||
+      f.link.toLowerCase().includes(q)
+    );
+  }, [tabFiles, activeTab, debouncedSearch]);
+
+  const sorted = useMemo(() =>
+    [...filtered].sort((a, b) => {
+      const va = String(a[sortCol] ?? '');
+      const vb = String(b[sortCol] ?? '');
+      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    }),
+    [filtered, sortCol, sortDir]
   );
-
-  const sorted = [...filtered].sort((a, b) => {
-    const va = String(a[sortCol] ?? '');
-    const vb = String(b[sortCol] ?? '');
-    return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
-  });
 
   const total      = sorted.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const paged      = sorted.slice((page - 1) * pageSize, page * pageSize);
+  const paged      = useMemo(() =>
+    sorted.slice((page - 1) * pageSize, page * pageSize),
+    [sorted, page, pageSize]
+  );
 
   // ── Handlers ───────────────────────────────────────────────────────────────
+
   const handleSort = (col: keyof ProjectFile) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortCol(col); setSortDir('asc'); }
     setPage(1);
   };
 
-  const handleTabChange = (tab: TabKey) => {
-    setActiveTab(tab);
-    setPage(1);
-  };
+  const handleTabChange = (tab: TabKey) => { setActiveTab(tab); setPage(1); };
 
   const openPreview = (file: ProjectFile) => {
     const src = resolveThumbSrc(file.thumb);
@@ -503,174 +250,328 @@ export default function ProjectFiles() {
     setPreviewSrc(src);
   };
 
-  const closePreview = () => {
-    setPreviewFile(null);
-    setPreviewSrc('');
-  };
-
-  // ── Sort arrow helper ──────────────────────────────────────────────────────
-  const Arrow = ({ col }: { col: keyof ProjectFile }) =>
-    sortCol === col
-      ? <span className="ml-1 opacity-80">{sortDir === 'asc' ? '↑' : '↓'}</span>
-      : null;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setPreviewFile(null); setPreviewSrc(''); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
+    <div className="h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #0d1117 0%, #0f1520 50%, #0d1117 100%)' }}>
 
       {/* Navbar */}
       <div className="pt-14">
         <Navbar_Project activeTab="other" />
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-1.5 px-3.5 py-1.5 border-b border-gray-700 bg-[#20242a] shrink-0 pt-14">
-        <TabBtn label="All"    count={allFiles.length}   active={activeTab === 'all'}   onClick={() => handleTabChange('all')} />
-        <TabBtn label="Assets" count={assetFiles.length} active={activeTab === 'asset'} onClick={() => handleTabChange('asset')} />
-        <TabBtn label="Shots"  count={shotFiles.length}  active={activeTab === 'shot'}  onClick={() => handleTabChange('shot')} />
+      {/* ── Toolbar ── */}
+      <div
+        className="flex items-center gap-1 px-4 py-2 border-b shrink-0 pt-14"
+        style={{
+          borderColor: 'rgba(99,120,160,0.18)',
+          background: 'linear-gradient(180deg, rgba(16,22,36,0.98) 0%, rgba(13,18,28,0.98) 100%)',
+          boxShadow: '0 1px 0 rgba(99,160,255,0.06)',
+        }}
+      >
+        {/* Source tabs */}
+        {(['all', 'asset', 'shot'] as TabKey[]).map(tab => {
+          const count = tab === 'all' ? allFiles.length : tab === 'asset' ? assetFiles.length : shotFiles.length;
+          const label = tab === 'all' ? 'All Files' : tab === 'asset' ? 'Assets' : 'Shots';
+          const active = activeTab === tab;
+
+          const tabColors: Record<TabKey, string> = {
+            all:   'rgba(96,165,250,0.12)',
+            asset: 'rgba(139,92,246,0.12)',
+            shot:  'rgba(34,197,94,0.12)',
+          };
+          const tabBorders: Record<TabKey, string> = {
+            all:   'rgba(96,165,250,0.45)',
+            asset: 'rgba(139,92,246,0.45)',
+            shot:  'rgba(34,197,94,0.45)',
+          };
+          const tabText: Record<TabKey, string> = {
+            all:   '#93c5fd',
+            asset: '#c4b5fd',
+            shot:  '#86efac',
+          };
+          const badgeBg: Record<TabKey, string> = {
+            all:   'rgba(96,165,250,0.2)',
+            asset: 'rgba(139,92,246,0.2)',
+            shot:  'rgba(34,197,94,0.2)',
+          };
+
+          return (
+            <div
+              key={tab}
+              onClick={() => handleTabChange(tab)}
+              className="cursor-pointer flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-150"
+              style={{
+                background:  active ? tabColors[tab]  : 'transparent',
+                border:      active ? `1px solid ${tabBorders[tab]}` : '1px solid transparent',
+                color:       active ? tabText[tab]    : 'rgba(120,135,160,0.8)',
+                boxShadow:   active ? `0 0 12px ${tabColors[tab]}` : 'none',
+                letterSpacing: '0.02em',
+              }}
+            >
+              {label}
+              <span
+                className="px-1.5 py-px rounded-full text-[10px] font-bold tabular-nums"
+                style={{
+                  background: active ? badgeBg[tab] : 'rgba(60,70,90,0.5)',
+                  color:      active ? tabText[tab] : 'rgba(100,115,140,0.9)',
+                }}
+              >
+                {count}
+              </span>
+            </div>
+          );
+        })}
 
         <div className="flex-1" />
 
         {/* Search */}
-        <div className="flex items-center gap-1.5 bg-[#15181c] border border-gray-700 rounded px-2.5 py-1 w-48">
-          <Search size={12} className="text-gray-600 shrink-0" />
+        <div
+          className="flex items-center gap-2 rounded-lg px-3 py-1.5 w-52 transition-all"
+          style={{
+            background: 'rgba(10,15,25,0.8)',
+            border: '1px solid rgba(80,100,140,0.3)',
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.4)',
+          }}
+          onFocus={() => {}}
+        >
+          <Search size={12} style={{ color: 'rgba(100,130,180,0.6)', flexShrink: 0 }} />
           <input
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search Files…"
-            className="bg-transparent border-none outline-none text-[#cdd1d8] text-xs w-full placeholder-gray-600 font-mono"
+            placeholder="Search files…"
+            className="bg-transparent border-none outline-none text-xs w-full font-mono"
+            style={{ color: '#c8d3e8', caretColor: '#60a5fa' }}
           />
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto">
+      {/* ── Body ── */}
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(60,80,120,0.4) transparent' }}>
 
-        {/* Loading */}
         {loading && <PixelLoadingSkeleton />}
 
-        {/* Error */}
         {!loading && error && (
-          <div className="flex flex-col items-center justify-center h-full gap-2.5 text-red-400">
-            <AlertCircle size={28} />
-            <span className="text-sm">{error}</span>
+          <div className="flex flex-col items-center justify-center h-full gap-3">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)' }}>
+              <AlertCircle size={22} style={{ color: '#f87171' }} />
+            </div>
+            <span className="text-sm" style={{ color: '#f87171' }}>{error}</span>
             <button
               onClick={() => window.location.reload()}
-              className="mt-1 px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs border-none cursor-pointer transition-colors font-mono"
+              className="mt-1 px-5 py-1.5 rounded-lg text-white text-xs font-semibold transition-all cursor-pointer border-none"
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', boxShadow: '0 0 16px rgba(59,130,246,0.35)' }}
             >
               Retry
             </button>
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && !error && allFiles.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-2.5 text-gray-600">
-            <FileVideo size={36} className="text-gray-700" />
-            <span className="text-sm text-gray-500">No files found for this project</span>
+          <div className="flex flex-col items-center justify-center h-full gap-3">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(30,40,60,0.6)', border: '1px solid rgba(60,80,120,0.3)' }}>
+              <FileVideo size={28} style={{ color: 'rgba(80,100,140,0.6)' }} />
+            </div>
+            <span className="text-sm" style={{ color: 'rgba(100,120,160,0.7)' }}>No files found for this project</span>
           </div>
         )}
 
-        {/* Table */}
+        {/* ── Table ── */}
         {!loading && !error && allFiles.length > 0 && (
           <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
-            {/* col order: file name | thumbnail | links | status | description | created by | date */}
             <colgroup>
-              <col style={{ width: '28%' }} />
-              <col style={{ width: 120 }} />
-              <col style={{ width: '20%' }} />
-              <col style={{ width: 80 }} />
+              <col style={{ width: '25%' }} />
+              <col style={{ width: THUMB_W + 20 }} />
               <col style={{ width: '18%' }} />
-              <col style={{ width: '16%' }} />
+              <col style={{ width: 160 }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '14%' }} />
               <col style={{ width: 148 }} />
             </colgroup>
 
             <thead>
-              <tr className="bg-[#20242a] border-b-2 border-gray-700 sticky top-0 z-10">
-                <Th onClick={() => handleSort('name')} sortable>File <Arrow col="name" /></Th>
-                <Th>Thumbnail</Th>
-                <Th>Links</Th>
-                <Th onClick={() => handleSort('status')} sortable>Status <Arrow col="status" /></Th>
-                <Th>Description</Th>
-                <Th onClick={() => handleSort('user')} sortable>Created by <Arrow col="user" /></Th>
-                <Th onClick={() => handleSort('date')} sortable>Date Created <Arrow col="date" /></Th>
+              <tr
+                className="sticky top-0 z-10"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(14,20,34,0.99) 0%, rgba(12,18,30,0.99) 100%)',
+                  borderBottom: '1px solid rgba(60,80,120,0.35)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                }}
+              >
+                {(['name', null, null, 'status', null, 'user', 'date'] as const).map((col, i) => {
+                  const labels = ['File', 'Thumbnail', 'Links', 'Status', 'Description', 'Created by', 'Date Created'];
+                  const isSortable = col !== null;
+                  const isActive = isSortable && sortCol === col;
+                  return (
+                    <th
+                      key={i}
+                      onClick={isSortable ? () => handleSort(col!) : undefined}
+                      className="px-3 py-2 text-left font-semibold select-none whitespace-nowrap"
+                      style={{
+                        fontSize: '10px',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        color: isActive ? '#60a5fa' : 'rgba(90,110,150,0.85)',
+                        cursor: isSortable ? 'pointer' : 'default',
+                        transition: 'color 0.15s',
+                      }}
+                    >
+                      {labels[i]}
+                      {isActive && (
+                        <span style={{ marginLeft: 4, opacity: 0.9, color: '#60a5fa' }}>
+                          {sortDir === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
 
             <tbody>
               {paged.map((file, i) => {
-                const rowBase = i % 2 === 0 ? 'bg-[#1c1f23]' : 'bg-[#1e2227]';
+                const ext     = file.ext.toLowerCase();
+                const isImage = IMAGE_EXT.test(ext);
+                const isVideo = VIDEO_EXT.test(ext);
+                const src     = resolveThumbSrc(file.thumb);
+                const hasSrc  = !!src && (isImage || isVideo);
+                const failed  = thumbFailed.has(file.id);
+                const cb      = (s: string) => s.includes('?') ? `${s}&_cb=1` : `${s}?_cb=1`;
+                const status  = VERSION_STATUS[file.status?.toLowerCase()];
+                const fixedSz = { width: THUMB_W, height: THUMB_H, minWidth: THUMB_W, minHeight: THUMB_H };
+
+                // Alternating row backgrounds — slightly more contrast
+                const rowBg = i % 2 === 0
+                  ? 'rgba(13,19,32,0.7)'
+                  : 'rgba(16,23,38,0.55)';
 
                 return (
                   <tr
                     key={`${file.source}-${file.id}`}
-                    className={`${rowBase} border-b border-gray-800 hover:bg-[#252b33] transition-colors`}
+                    style={{
+                      background: rowBg,
+                      borderBottom: '1px solid rgba(40,55,80,0.4)',
+                      transition: 'background 0.12s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(30,50,90,0.35)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = rowBg)}
                   >
 
                     {/* File name */}
-                    <td className="px-2.5 py-2 align-middle">
+                    <td className="px-3 py-2 align-middle">
                       <div className="flex items-center gap-2 overflow-hidden">
-                        <FileIcon ext={file.ext} />
-                        <span className="text-[#5b9cf6] text-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center justify-center w-6 h-6 rounded-md shrink-0 ${EXT_CLASS[ext] ?? 'bg-gray-500/10 border border-gray-500/30 text-gray-400'}`}
+                          style={{ fontSize: 10 }}
+                        >
+                          <Film size={11} />
+                        </span>
+                        <span
+                          className="text-xs overflow-hidden text-ellipsis whitespace-nowrap font-medium"
+                          style={{ color: '#7eb8f7', letterSpacing: '0.01em' }}
+                          title={file.name}
+                        >
                           {file.name}
                         </span>
                       </div>
                     </td>
 
-                    {/* Thumbnail — click to preview */}
-                    <td className="px-2.5 py-1.5 align-middle">
-                      <ThumbCell file={file} onPreview={() => openPreview(file)} />
+                    {/* Thumbnail */}
+                    <td className="px-3 py-1.5 align-middle">
+                      {!hasSrc ? (
+                        <div
+                          style={{ ...fixedSz, borderRadius: 6, border: '1px solid rgba(50,65,90,0.5)', background: 'rgba(10,15,25,0.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                        >
+                          {isVideo ? <Film size={16} style={{ color: 'rgba(56,130,210,0.4)' }} /> : <FileVideo size={16} style={{ color: 'rgba(80,100,130,0.4)' }} />}
+                          {ext && <span style={{ fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(80,100,130,0.5)' }}>{ext}</span>}
+                        </div>
+                      ) : failed ? (
+                        <div style={{ ...fixedSz, borderRadius: 6, border: '1px solid rgba(50,65,90,0.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, position: 'relative', overflow: 'hidden', background: 'rgba(12,18,30,0.7)' }}>
+                          <div style={{ position: 'absolute', inset: 0, backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.3)' }} />
+                          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                            <FileVideo size={14} style={{ color: 'rgba(90,110,140,0.6)' }} />
+                            <span style={{ fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(90,110,140,0.5)' }}>no preview</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          style={{ ...fixedSz, borderRadius: 6, border: '1px solid rgba(60,100,160,0.3)', overflow: 'hidden', position: 'relative', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+                          onClick={() => openPreview(file)}
+                          className="group"
+                        >
+                          {isVideo
+                            ? <video src={cb(src!)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(8px)', transform: 'scale(1.1)' }} muted loop autoPlay playsInline aria-hidden />
+                            : <img   src={cb(src!)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(8px)', transform: 'scale(1.1)' }} aria-hidden />
+                          }
+                          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
+                          {isVideo
+                            ? <video src={cb(src!)} style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain' }} muted loop autoPlay playsInline onError={() => setThumbFailed(p => new Set(p).add(file.id))} />
+                            : <img   src={cb(src!)} alt="thumb" style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain' }} onError={() => setThumbFailed(p => new Set(p).add(file.id))} />
+                          }
+                          <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'rgba(0,20,60,0.55)' }}>
+                            <ZoomIn size={15} style={{ color: '#fff' }} />
+                          </div>
+                        </div>
+                      )}
                     </td>
 
                     {/* Links */}
-                    <td className="px-2.5 py-2 align-middle">
-                      <div className="flex items-center gap-1.5 overflow-hidden">
-                        <div className="w-5 h-5 rounded shrink-0 bg-[#2a2f38] border border-gray-700 flex items-center justify-center">
-                          <Film size={10} className="text-gray-400" />
+                    <td className="px-3 py-2 align-middle">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <div style={{ width: 20, height: 20, borderRadius: 5, background: 'rgba(30,45,75,0.7)', border: '1px solid rgba(60,90,140,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Film size={9} style={{ color: 'rgba(100,140,200,0.7)' }} />
                         </div>
-                        <span className="text-[#5b9cf6] text-xs overflow-hidden text-ellipsis whitespace-nowrap">
-                          {file.link || '—'}
-                        </span>
+                        <span className="text-xs overflow-hidden text-ellipsis whitespace-nowrap" style={{ color: '#7eb8f7' }}>{file.link || '—'}</span>
                       </div>
                     </td>
 
                     {/* Status */}
-                    <td className="px-2.5 py-2 align-middle">
-                      {file.status ? (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold whitespace-nowrap
-                          ${VERSION_STATUS_CLASS[file.status.toLowerCase()] ?? 'bg-gray-700/40 border-gray-600 text-gray-400'}`}
+                    <td className="px-3 py-2 align-middle">
+                      {status ? (
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap border ${status.bg} ${status.border} ${status.text}`}
+                          style={{ letterSpacing: '0.02em' }}
                         >
-                          {VERSION_STATUS_LABEL[file.status.toLowerCase()] ?? file.status}
+                          {status.icon === 'dot'
+                            ? <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status.dotColor}`} style={{ boxShadow: `0 0 5px currentColor` }} />
+                            : <span style={{ opacity: 0.5, lineHeight: 1 }}>—</span>}
+                          {status.fullLabel}
                         </span>
                       ) : (
-                        <span className="text-gray-600 text-xs">—</span>
+                        <span style={{ color: 'rgba(80,100,130,0.5)', fontSize: 12 }}>—</span>
                       )}
                     </td>
 
                     {/* Description */}
-                    <td className="px-2.5 py-2 align-middle">
-                      <span className={`block text-xs overflow-hidden text-ellipsis whitespace-nowrap
-                        ${file.desc ? 'text-gray-300' : 'text-gray-600'}`}
+                    <td className="px-3 py-2 align-middle">
+                      <span
+                        className="block text-xs overflow-hidden text-ellipsis whitespace-nowrap"
+                        style={{ color: file.desc ? 'rgba(180,195,220,0.85)' : 'rgba(70,90,120,0.5)' }}
+                        title={file.desc}
                       >
                         {file.desc || ''}
                       </span>
                     </td>
 
                     {/* Created by */}
-                    <td className="px-2.5 py-2 align-middle">
+                    <td className="px-3 py-2 align-middle">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-[18px] h-[18px] rounded-full shrink-0 bg-blue-900/50 flex items-center justify-center">
-                          <Eye size={9} className="text-blue-300" />
+                        <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'linear-gradient(135deg, rgba(37,99,235,0.4), rgba(99,102,241,0.4))', border: '1px solid rgba(99,130,220,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Eye size={9} style={{ color: '#93c5fd' }} />
                         </div>
-                        <span className="text-[#5b9cf6] text-xs whitespace-nowrap overflow-hidden text-ellipsis">
-                          {file.user}
-                        </span>
+                        <span className="text-xs whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: '#7eb8f7' }}>{file.user}</span>
                       </div>
                     </td>
 
                     {/* Date Created */}
-                    <td className="px-2.5 py-2 align-middle">
-                      <span className="text-gray-400 text-xs whitespace-nowrap">{file.date}</span>
+                    <td className="px-3 py-2 align-middle">
+                      <span className="text-xs tabular-nums whitespace-nowrap" style={{ color: 'rgba(130,150,185,0.75)', fontVariantNumeric: 'tabular-nums' }}>{file.date}</span>
                     </td>
 
                   </tr>
@@ -681,65 +582,167 @@ export default function ProjectFiles() {
         )}
       </div>
 
-      {/* Pagination footer */}
+      {/* ── Pagination footer ── */}
       {!loading && !error && allFiles.length > 0 && (
-        <div className="flex items-center justify-between px-4 py-1.5 border-t border-gray-700 bg-[#20242a] shrink-0 text-[11px] text-gray-500">
-
-          {/* Left: count */}
-          <span>
-            {total === 0 ? '0' : `${(page - 1) * pageSize + 1} – ${Math.min(page * pageSize, total)}`} of {total} Files
+        <div
+          className="flex items-center justify-between px-4 py-2 shrink-0"
+          style={{
+            borderTop: '1px solid rgba(50,70,110,0.35)',
+            background: 'linear-gradient(180deg, rgba(12,18,30,0.98) 0%, rgba(10,15,25,0.98) 100%)',
+            fontSize: 11,
+            color: 'rgba(100,120,160,0.7)',
+          }}
+        >
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {total === 0 ? '0' : `${(page - 1) * pageSize + 1} – ${Math.min(page * pageSize, total)}`}
+            <span style={{ color: 'rgba(70,90,120,0.7)', margin: '0 4px' }}>of</span>
+            {total}
+            <span style={{ color: 'rgba(70,90,120,0.7)', marginLeft: 4 }}>files</span>
           </span>
 
-          {/* Right: page size + page navigation */}
-          <div className="flex items-center gap-2.5">
-
+          <div className="flex items-center gap-3">
             {/* Rows per page */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-gray-600">Rows:</span>
-              <div className="flex items-center gap-0.5 border border-gray-700 rounded overflow-hidden">
+            <div className="flex items-center gap-2">
+              <span style={{ color: 'rgba(70,90,120,0.7)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Rows</span>
+              <div className="flex items-center" style={{ border: '1px solid rgba(50,70,110,0.4)', borderRadius: 6, overflow: 'hidden' }}>
                 {PAGE_SIZE_OPTIONS.map(size => (
-                  <button
+                  <div
                     key={size}
                     onClick={() => { setPageSize(size); setPage(1); }}
-                    className={`px-2 py-0.5 text-[11px] transition-colors border-none cursor-pointer
-                      ${pageSize === size
-                        ? 'bg-blue-900/50 text-blue-300'
-                        : 'bg-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-700/40'
-                      }`}
+                    className="cursor-pointer transition-all"
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: 11,
+                      background: pageSize === size ? 'rgba(37,99,235,0.25)' : 'transparent',
+                      color:      pageSize === size ? '#93c5fd'               : 'rgba(100,120,160,0.7)',
+                      borderRight: '1px solid rgba(50,70,110,0.3)',
+                      fontWeight:  pageSize === size ? 600 : 400,
+                    }}
                   >
                     {size}
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
 
             {/* Page buttons */}
-            <div className="flex items-center gap-0.5">
-              <PagBtn onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                <ChevronLeft size={13} />
-              </PagBtn>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                style={{ width: 26, height: 24, borderRadius: 5, background: 'transparent', border: '1px solid rgba(60,80,120,0.4)', color: 'rgba(130,155,200,0.8)' }}
+              >
+                <ChevronLeft size={12} />
+              </button>
               {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
                 const start = Math.max(1, Math.min(page - 3, totalPages - 6));
                 const p = totalPages > 7 ? start + i : i + 1;
+                const isActive = p === page;
                 return (
-                  <PagBtn key={p} onClick={() => setPage(p)} active={p === page}>
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className="cursor-pointer transition-all flex items-center justify-center"
+                    style={{
+                      minWidth: 26, height: 24, padding: '0 6px', borderRadius: 5, fontSize: 11,
+                      background: isActive ? 'rgba(37,99,235,0.3)' : 'transparent',
+                      border: `1px solid ${isActive ? 'rgba(96,165,250,0.5)' : 'rgba(60,80,120,0.35)'}`,
+                      color:  isActive ? '#93c5fd' : 'rgba(100,125,170,0.8)',
+                      fontWeight: isActive ? 600 : 400,
+                      boxShadow: isActive ? '0 0 8px rgba(96,165,250,0.2)' : 'none',
+                    }}
+                  >
                     {p}
-                  </PagBtn>
+                  </button>
                 );
               })}
-              <PagBtn onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-                <ChevronRight size={13} />
-              </PagBtn>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                style={{ width: 26, height: 24, borderRadius: 5, background: 'transparent', border: '1px solid rgba(60,80,120,0.4)', color: 'rgba(130,155,200,0.8)' }}
+              >
+                <ChevronRight size={12} />
+              </button>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* Preview modal */}
-      {previewFile && previewSrc && (
-        <PreviewModal file={previewFile} src={previewSrc} onClose={closePreview} />
-      )}
+      {/* ── Preview modal ── */}
+      {previewFile && previewSrc && (() => {
+        const isVideo = VIDEO_EXT.test(previewFile.ext.toLowerCase());
+        const cb = previewSrc.includes('?') ? `${previewSrc}&_cb=1` : `${previewSrc}?_cb=1`;
+        const st = VERSION_STATUS[previewFile.status?.toLowerCase()];
+        return (
+          <div
+            className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-center"
+            style={{ top: 112, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(12px)' }}
+            onClick={() => { setPreviewFile(null); setPreviewSrc(''); }}
+          >
+            <div
+              className="relative max-w-4xl w-full mx-4 overflow-hidden"
+              style={{
+                borderRadius: 12,
+                background: 'linear-gradient(160deg, rgba(14,22,40,0.98) 0%, rgba(10,16,30,0.98) 100%)',
+                border: '1px solid rgba(60,100,180,0.3)',
+                boxShadow: '0 24px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(80,120,220,0.08)',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* header */}
+              <div
+                className="flex items-center justify-between px-4 py-2.5"
+                style={{ borderBottom: '1px solid rgba(50,70,110,0.4)', background: 'rgba(10,16,28,0.6)' }}
+              >
+                <span className="text-xs font-mono truncate max-w-[80%]" style={{ color: '#c8d3e8', letterSpacing: '0.01em' }}>{previewFile.name}</span>
+                <button
+                  onClick={() => { setPreviewFile(null); setPreviewSrc(''); }}
+                  className="w-6 h-6 flex items-center justify-center rounded transition-colors"
+                  style={{ background: 'transparent', border: '1px solid transparent', color: 'rgba(130,150,190,0.6)' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.15)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,0.3)'; (e.currentTarget as HTMLButtonElement).style.color = '#f87171'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'rgba(130,150,190,0.6)'; }}
+                >
+                  <X size={13} />
+                </button>
+              </div>
+
+              {/* media with blurred bg */}
+              <div className="relative overflow-hidden flex items-center justify-center" style={{ minHeight: 200, maxHeight: '75vh', background: '#07101c' }}>
+                {isVideo
+                  ? <video src={cb} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(24px)', transform: 'scale(1.15)', opacity: 0.4 }} muted loop autoPlay playsInline aria-hidden />
+                  : <img   src={cb} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(24px)', transform: 'scale(1.15)', opacity: 0.4 }} aria-hidden />
+                }
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+                {isVideo
+                  ? <video src={cb} className="relative z-10 max-w-full object-contain" style={{ maxHeight: '75vh' }} controls autoPlay muted loop playsInline />
+                  : <img   src={cb} alt={previewFile.name} className="relative z-10 max-w-full object-contain" style={{ maxHeight: '75vh' }} />
+                }
+              </div>
+
+              {/* footer metadata */}
+              <div
+                className="flex items-center gap-3 px-4 py-2"
+                style={{ borderTop: '1px solid rgba(50,70,110,0.4)', background: 'rgba(10,16,28,0.6)', fontSize: 11 }}
+              >
+                <span style={{ color: 'rgba(130,155,195,0.8)' }}>{previewFile.user}</span>
+                <span style={{ color: 'rgba(60,80,110,0.8)' }}>·</span>
+                <span style={{ color: 'rgba(100,125,165,0.7)', fontVariantNumeric: 'tabular-nums' }}>{previewFile.date}</span>
+                {st && (
+                  <>
+                    <span style={{ color: 'rgba(60,80,110,0.8)' }}>·</span>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${st.bg} ${st.border} ${st.text}`}>
+                      {st.icon === 'dot' ? <span className={`w-1.5 h-1.5 rounded-full ${st.dotColor}`} style={{ boxShadow: '0 0 5px currentColor' }} /> : <span style={{ opacity: 0.5 }}>—</span>}
+                      {st.fullLabel}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

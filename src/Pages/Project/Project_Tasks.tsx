@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Navbar_Project from "../../components/Navbar_Project";
 import axios from "axios";
 import ENDPOINTS from "../../config";
-import { Calendar, Check, ChevronRight, ClipboardList, Clock, Pencil, Users, X, UserPlus, Trash2, ChevronDown, Search } from 'lucide-react';
+import { Calendar, Check, ChevronRight, ClipboardList, Clock, Pencil, Users, X, UserPlus, Trash2, ChevronDown, Search, ChevronLeft } from 'lucide-react';
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import RightPanel from "../../components/RightPanel";
@@ -99,7 +99,40 @@ type Version = {
     description?: string;           // ⭐ เปลี่ยนจาก notes เป็น description
     uploaded_by_name?: string;
 };
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ Loading State ++++++++++++++++++++++++++++++++++++++++++++++
+
+
+// ⭐ เพิ่มตรงนี้ หลังบรรทัด 60
+const useLoadingState = () => {
+    const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+
+    const setLoading = (key: string, value: boolean) => {
+        setLoadingStates(prev => ({ ...prev, [key]: value }));
+    };
+
+    const isLoading = (key: string) => loadingStates[key] || false;
+
+    return { setLoading, isLoading };
+};
+
+
+
+function useDebounce<T>(value: T, delay: number): T {
+    const [debounced, setDebounced] = useState<T>(value);
+    const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = setTimeout(() => setDebounced(value), delay);
+        return () => { if (timer.current) clearTimeout(timer.current); };
+    }, [value, delay]);
+    return debounced;
+}
 export default function Project_Tasks() {
+    const { setLoading, isLoading } = useLoadingState(); // ⭐ เพิ่มบรรทัดนี้
+    const PAGE_SIZE_OPTIONS = [25, 50, 75, 100, 200];
+    const [page, setPage] = useState(1);
+const [pageSize, setPageSize] = useState(50);
+
     const navigate = useNavigate();
     const [showCreateMytask, setShowCreateMytask] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -144,6 +177,7 @@ export default function Project_Tasks() {
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     const [searchQuery, setSearchQuery] = useState("");
     const [filterStatus, setFilterStatus] = useState<string>("");
+    
     const [filterEntityType, setFilterEntityType] = useState<string>("");
     const [showStatusFilter, setShowStatusFilter] = useState(false);
     const [showEntityFilter, setShowEntityFilter] = useState(false);
@@ -182,23 +216,7 @@ export default function Project_Tasks() {
 
 
 
-    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ Loading State ++++++++++++++++++++++++++++++++++++++++++++++
 
-
-    // ⭐ เพิ่มตรงนี้ หลังบรรทัด 60
-    const useLoadingState = () => {
-        const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-
-        const setLoading = (key: string, value: boolean) => {
-            setLoadingStates(prev => ({ ...prev, [key]: value }));
-        };
-
-        const isLoading = (key: string) => loadingStates[key] || false;
-
-        return { setLoading, isLoading };
-    };
-
-    const { setLoading, isLoading } = useLoadingState(); // ⭐ เพิ่มบรรทัดนี้
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ Create Task ++++++++++++++++++++++++++++++++++++++++++++++
     // เพิ่ม state สำหรับ form
     const [createTaskForm, setCreateTaskForm] = useState({
@@ -678,7 +696,14 @@ export default function Project_Tasks() {
 
     // เปลี่ยน state
     const [taskGroups, setTaskGroups] = useState<TaskGroup[]>([]);
-    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+        try {
+            const saved = localStorage.getItem('task_expanded_groups');
+            return saved ? new Set(JSON.parse(saved)) : new Set();
+        } catch {
+            return new Set();
+        }
+    });
 
     // แก้ useEffect สำหรับ fetch
     useEffect(() => {
@@ -717,7 +742,10 @@ export default function Project_Tasks() {
                 const allGroupKeys = sortedGroups.map((group: TaskGroup) =>
                     `${group.entity_type}_${group.entity_id}`
                 );
-                setExpandedGroups(new Set(allGroupKeys));
+                setExpandedGroups(prev => {
+                    if (prev.size > 0) return prev; // มีค่า saved อยู่แล้ว
+                    return new Set([allGroupKeys[0]]); // ครั้งแรก เปิด group แรก
+                });
             } catch (err) {
                 console.error("Fetch tasks error:", err);
                 setFetchError(true);
@@ -727,6 +755,10 @@ export default function Project_Tasks() {
         };
         fetchTasks();
     }, []);
+
+    useEffect(() => {
+        localStorage.setItem('task_expanded_groups', JSON.stringify([...expandedGroups]));
+    }, [expandedGroups]);
 
     // ฟังก์ชัน toggle group
     const toggleGroup = (entity_type: string, entity_id: number) => {
@@ -744,7 +776,10 @@ export default function Project_Tasks() {
 
     // คำนวณจำนวน task ทั้งหมด
     // ✅ เพิ่มหลัง toggleGroup function (ประมาณบรรทัด 245)
-    const totalTasks = taskGroups.reduce((sum, group) => sum + group.tasks.length, 0);
+    const totalTasks = useMemo(() =>
+        taskGroups.reduce((sum, group) => sum + group.tasks.length, 0),
+        [taskGroups]
+    );
 
 
 
@@ -1015,14 +1050,16 @@ export default function Project_Tasks() {
     };
 
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    const debouncedSearch = useDebounce(searchQuery, 200);
+
     const filteredGroups = taskGroups
         .map(g => ({
             ...g,
             tasks: g.tasks.filter(task => {
-                const matchSearch = !searchQuery ||
-                    task.task_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    g.entity_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    task.assignees?.some(a => a.username.toLowerCase().includes(searchQuery.toLowerCase()));
+                const matchSearch = !debouncedSearch ||
+                    task.task_name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                    g.entity_name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                    task.assignees?.some(a => a.username.toLowerCase().includes(debouncedSearch.toLowerCase()));
                 const matchStatus = !filterStatus || task.status === filterStatus;
                 const matchEntity = !filterEntityType || g.entity_type === filterEntityType;
                 return matchSearch && matchStatus && matchEntity;
@@ -1031,6 +1068,26 @@ export default function Project_Tasks() {
         .filter(g => g.tasks.length > 0);
 
     const displayTotal = filteredGroups.reduce((s, g) => s + g.tasks.length, 0);
+    const totalPages = Math.max(1, Math.ceil(displayTotal / pageSize));
+
+// Slice tasks ข้ามกลุ่ม เพื่อ pagination แบบ task-level
+const pagedGroups = useMemo(() => {
+  const start = (page - 1) * pageSize;
+  const end = page * pageSize;
+  let count = 0;
+  const result: typeof filteredGroups = [];
+
+  for (const group of filteredGroups) {
+    if (count >= end) break;
+    const sliceStart = Math.max(0, start - count);
+    const sliceEnd   = Math.min(group.tasks.length, end - count);
+    if (sliceStart < group.tasks.length && sliceEnd > sliceStart) {
+      result.push({ ...group, tasks: group.tasks.slice(sliceStart, sliceEnd) });
+    }
+    count += group.tasks.length;
+  }
+  return result;
+}, [filteredGroups, page, pageSize]);
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -1056,7 +1113,10 @@ export default function Project_Tasks() {
                                 type="text"
                                 placeholder="ค้นหา task, entity, assignee..."
                                 value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
+                                onChange={e => {
+                                    setSearchQuery(e.target.value);
+                                    setPage(1);
+                                }}
                                 className="w-full pl-9 pr-4 h-9 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
                             />
                             {searchQuery && (
@@ -1092,7 +1152,7 @@ export default function Project_Tasks() {
                                         ].map(opt => (
                                             <button
                                                 key={opt.value}
-                                                onClick={() => { setFilterEntityType(opt.value); setShowEntityFilter(false); }}
+                                                onClick={() => { setFilterEntityType(opt.value); setShowEntityFilter(false); setPage(1); }}
                                                 className="flex items-center gap-3 w-full px-3 py-2 text-left transition-colors bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-500"
                                             >
                                                 <span className={filterEntityType === opt.value ? 'text-blue-400 text-sm' : 'text-gray-200 text-sm'}>
@@ -1142,7 +1202,7 @@ export default function Project_Tasks() {
                                         {(Object.entries(statusConfig) as [StatusType, { label: string; fullLabel: string; color: string; icon: string }][]).map(([key, config]) => (
                                             <button
                                                 key={key}
-                                                onClick={() => { setFilterStatus(key); setShowStatusFilter(false); }}
+                                                onClick={() => { setFilterStatus(key); setShowStatusFilter(false); setPage(1); }}
                                                 className="flex items-center gap-3 w-full px-3 py-2 text-left text-sm transition-colors bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-500"
                                             >
                                                 {config.icon === '-' ? (
@@ -1281,7 +1341,7 @@ export default function Project_Tasks() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredGroups.map((group) => {
+                                    pagedGroups.map((group) => {
                                         const groupKey = `${group.entity_type}_${group.entity_id}`;
                                         const isExpanded = expandedGroups.has(groupKey);
 
@@ -2549,6 +2609,89 @@ export default function Project_Tasks() {
                 </div>,
                 document.body
             )}
+
+            {/* ── Pagination footer ── */}
+{!isLoadingSequences && !fetchError && totalTasks > 0 && (
+  <div
+    className="flex items-center justify-between px-4 py-2 shrink-0 border-t border-gray-800 bg-gray-900"
+    style={{ fontSize: 11, color: 'rgba(100,120,160,0.7)' }}
+  >
+    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+      {displayTotal === 0 ? '0' : `${(page - 1) * pageSize + 1} – ${Math.min(page * pageSize, displayTotal)}`}
+      <span style={{ color: 'rgba(70,90,120,0.7)', margin: '0 4px' }}>of</span>
+      {displayTotal}
+      <span style={{ color: 'rgba(70,90,120,0.7)', marginLeft: 4 }}>tasks</span>
+    </span>
+
+    <div className="flex items-center gap-3">
+      {/* Rows per page */}
+      <div className="flex items-center gap-2">
+        <span style={{ color: 'rgba(70,90,120,0.7)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Rows</span>
+        <div className="flex items-center" style={{ border: '1px solid rgba(50,70,110,0.4)', borderRadius: 6, overflow: 'hidden' }}>
+          {PAGE_SIZE_OPTIONS.map(size => (
+            <div
+              key={size}
+              onClick={() => { setPageSize(size); setPage(1); }}
+              className="cursor-pointer transition-all"
+              style={{
+                padding: '2px 8px', fontSize: 11,
+                background: pageSize === size ? 'rgba(37,99,235,0.25)' : 'transparent',
+                color:      pageSize === size ? '#93c5fd' : 'rgba(100,120,160,0.7)',
+                borderRight: '1px solid rgba(50,70,110,0.3)',
+                fontWeight:  pageSize === size ? 600 : 400,
+              }}
+            >
+              {size}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Page buttons */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+          style={{ width: 26, height: 24, borderRadius: 5, background: 'transparent', border: '1px solid rgba(60,80,120,0.4)', color: 'rgba(130,155,200,0.8)' }}
+        >
+          <ChevronLeft size={12} />
+        </button>
+
+        {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+          const start = Math.max(1, Math.min(page - 3, totalPages - 6));
+          const p = totalPages > 7 ? start + i : i + 1;
+          const isActive = p === page;
+          return (
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              className="cursor-pointer flex items-center justify-center"
+              style={{
+                minWidth: 26, height: 24, padding: '0 6px', borderRadius: 5, fontSize: 11,
+                background: isActive ? 'rgba(37,99,235,0.3)' : 'transparent',
+                border: `1px solid ${isActive ? 'rgba(96,165,250,0.5)' : 'rgba(60,80,120,0.35)'}`,
+                color:  isActive ? '#93c5fd' : 'rgba(100,125,170,0.8)',
+                fontWeight: isActive ? 600 : 400,
+              }}
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          disabled={page === totalPages}
+          className="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+          style={{ width: 26, height: 24, borderRadius: 5, background: 'transparent', border: '1px solid rgba(60,80,120,0.4)', color: 'rgba(130,155,200,0.8)' }}
+        >
+          <ChevronRight size={12} />
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         </div>
     );
 }
