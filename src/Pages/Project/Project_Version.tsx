@@ -6,7 +6,8 @@ import {
     Check, ChevronDown, ChevronRight, Clock,
     Eye, FileText, HardDrive,
     Image, Search, Trash2, Upload,
-    User, X, Film, Package, Layers, Pencil
+    User, X, Film, Package, Layers, Pencil,
+    ChevronLeft
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -121,7 +122,14 @@ export default function Project_Version() {
     const navigate = useNavigate();
     const [groups, setGroups] = useState<GroupedVersions[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+        try {
+            const saved = localStorage.getItem('version_expanded_groups');
+            return saved ? new Set(JSON.parse(saved)) : new Set();
+        } catch {
+            return new Set();
+        }
+    });
     const [searchQuery, setSearchQuery] = useState("");
     const [filterStatus, setFilterStatus] = useState<string>("");
     const [filterEntityType, setFilterEntityType] = useState<string>("");
@@ -161,11 +169,18 @@ export default function Project_Version() {
 
     const [fetchError, setFetchError] = useState(false);
 
+    const PAGE_SIZE_OPTIONS = [25, 50, 75, 100, 200];
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(50);
+
     // -------------------- Fetch --------------------
     useEffect(() => {
         fetchVersions();
         fetchProjectUsers();
     }, []);
+    useEffect(() => {
+        localStorage.setItem('version_expanded_groups', JSON.stringify([...expandedGroups]));
+    }, [expandedGroups]);
 
     const fetchVersions = async () => {
         setIsLoading(true);
@@ -181,7 +196,10 @@ export default function Project_Version() {
             setGroups(sorted);
 
             const keys = sorted.map(g => `${g.entity_type}_${g.entity_id}`);
-            setExpandedGroups(new Set(keys));
+            setExpandedGroups(prev => {
+                if (prev.size > 0) return prev; // มีค่า saved อยู่แล้ว
+                return new Set(keys); // ครั้งแรก เปิดทั้งหมด
+            });
         } catch (err) {
             console.error("Fetch versions error:", err);
         } finally {
@@ -337,6 +355,24 @@ export default function Project_Version() {
         .filter(g => g.versions.length > 0);
 
     const displayTotal = filteredGroups.reduce((s, g) => s + g.versions.length, 0);
+    const totalPages = Math.max(1, Math.ceil(displayTotal / pageSize));
+
+    const pagedGroups = React.useMemo(() => {
+        const start = (page - 1) * pageSize;
+        const end = page * pageSize;
+        let count = 0;
+        const result: typeof filteredGroups = [];
+        for (const group of filteredGroups) {
+            if (count >= end) break;
+            const sliceStart = Math.max(0, start - count);
+            const sliceEnd = Math.min(group.versions.length, end - count);
+            if (sliceStart < group.versions.length && sliceEnd > sliceStart) {
+                result.push({ ...group, versions: group.versions.slice(sliceStart, sliceEnd) });
+            }
+            count += group.versions.length;
+        }
+        return result;
+    }, [filteredGroups, page, pageSize]);
 
 
     // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -359,7 +395,10 @@ export default function Project_Version() {
                             type="text"
                             placeholder="ค้นหา version, task, entity..."
                             value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
+                            onChange={e => {
+                                setSearchQuery(e.target.value);
+                                setPage(1);
+                            }}
                             className="w-full pl-9 pr-4 h-9 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500"
                         />
                         {searchQuery && (
@@ -395,7 +434,7 @@ export default function Project_Version() {
                                     ].map(opt => (
                                         <button
                                             key={opt.value}
-                                            onClick={() => { setFilterEntityType(opt.value); setShowEntityFilter(false); }}
+                                            onClick={() => { setFilterEntityType(opt.value); setShowEntityFilter(false); setPage(1); }}
                                             className="flex items-center gap-3 w-full px-3 py-2 text-left transition-colors bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-500"
                                         >
                                             <span className={filterEntityType === opt.value ? 'text-blue-400 text-sm' : 'text-gray-200 text-sm'}>
@@ -445,7 +484,7 @@ export default function Project_Version() {
                                     {(Object.entries(statusConfig) as [StatusType, { label: string; fullLabel: string; color: string; icon: string }][]).map(([key, config]) => (
                                         <button
                                             key={key}
-                                            onClick={() => { setFilterStatus(key); setShowStatusFilter(false); }}
+                                            onClick={() => { setFilterStatus(key); setShowStatusFilter(false);  setPage(1); }}
                                             className="flex items-center gap-3 w-full px-3 py-2 text-left text-sm transition-colors bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-500"
                                         >
                                             {config.icon === '-' ? (
@@ -525,7 +564,7 @@ export default function Project_Version() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredGroups.map(group => {
+                                    pagedGroups.map(group => {
                                         const groupKey = `${group.entity_type}_${group.entity_id}`;
                                         const isExpanded = expandedGroups.has(groupKey);
                                         const entityColor = getEntityColor(group.entity_type);
@@ -1021,6 +1060,86 @@ export default function Project_Version() {
                         </tbody>
                     </table>
                 </div>
+                 {/* ── Pagination footer ── */}
+                {!isLoading && !fetchError && totalVersions > 0 && (
+                    <div
+                        className="flex items-center justify-between px-4 py-2 shrink-0 border-t border-gray-800 bg-gray-900"
+                        style={{ fontSize: 11, color: 'rgba(100,120,160,0.7)' }}
+                    >
+                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {displayTotal === 0 ? '0' : `${(page - 1) * pageSize + 1} – ${Math.min(page * pageSize, displayTotal)}`}
+                            <span style={{ color: 'rgba(70,90,120,0.7)', margin: '0 4px' }}>of</span>
+                            {displayTotal}
+                            <span style={{ color: 'rgba(70,90,120,0.7)', marginLeft: 4 }}>versions</span>
+                        </span>
+
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <span style={{ color: 'rgba(70,90,120,0.7)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Rows</span>
+                                <div className="flex items-center" style={{ border: '1px solid rgba(50,70,110,0.4)', borderRadius: 6, overflow: 'hidden' }}>
+                                    {PAGE_SIZE_OPTIONS.map(size => (
+                                        <div
+                                            key={size}
+                                            onClick={() => { setPageSize(size); setPage(1); }}
+                                            className="cursor-pointer transition-all"
+                                            style={{
+                                                padding: '2px 8px', fontSize: 11,
+                                                background: pageSize === size ? 'rgba(37,99,235,0.25)' : 'transparent',
+                                                color: pageSize === size ? '#93c5fd' : 'rgba(100,120,160,0.7)',
+                                                borderRight: '1px solid rgba(50,70,110,0.3)',
+                                                fontWeight: pageSize === size ? 600 : 400,
+                                            }}
+                                        >
+                                            {size}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                    className="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                                    style={{ width: 26, height: 24, borderRadius: 5, background: 'transparent', border: '1px solid rgba(60,80,120,0.4)', color: 'rgba(130,155,200,0.8)' }}
+                                >
+                                    <ChevronLeft size={12} />
+                                </button>
+
+                                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                                    const start = Math.max(1, Math.min(page - 3, totalPages - 6));
+                                    const p = totalPages > 7 ? start + i : i + 1;
+                                    const isActive = p === page;
+                                    return (
+                                        <button
+                                            key={p}
+                                            onClick={() => setPage(p)}
+                                            className="cursor-pointer flex items-center justify-center"
+                                            style={{
+                                                minWidth: 26, height: 24, padding: '0 6px', borderRadius: 5, fontSize: 11,
+                                                background: isActive ? 'rgba(37,99,235,0.3)' : 'transparent',
+                                                border: `1px solid ${isActive ? 'rgba(96,165,250,0.5)' : 'rgba(60,80,120,0.35)'}`,
+                                                color: isActive ? '#93c5fd' : 'rgba(100,125,170,0.8)',
+                                                fontWeight: isActive ? 600 : 400,
+                                            }}
+                                        >
+                                            {p}
+                                        </button>
+                                    );
+                                })}
+
+                                <button
+                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={page === totalPages}
+                                    className="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                                    style={{ width: 26, height: 24, borderRadius: 5, background: 'transparent', border: '1px solid rgba(60,80,120,0.4)', color: 'rgba(130,155,200,0.8)' }}
+                                >
+                                    <ChevronRight size={12} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
 
             {/* ===================== Image Thumbnail Modal ===================== */}

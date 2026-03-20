@@ -86,7 +86,6 @@ type Task = {
     due_date: string;
     created_at: string;
     description: string;
-    file_url: string;
     assignees: TaskAssignee[];
     reviewers: TaskReviewer[];
     pipeline_step: PipelineStep | null;
@@ -264,7 +263,6 @@ export default function Others_Asset() {
         start_date: '',
         due_date: '',
         description: '',
-        file_url: '',
     });
 
     //============================================================================================================================================//
@@ -1030,7 +1028,6 @@ export default function Others_Asset() {
                 start_date: createTaskForm.start_date || null,
                 due_date: createTaskForm.due_date || null,
                 description: createTaskForm.description || null,
-                file_url: createTaskForm.file_url || null,
                 pipeline_step_id: null
             };
 
@@ -1052,8 +1049,7 @@ export default function Others_Asset() {
                 start_date: '',
                 due_date: '',
                 description: '',
-                file_url: ''
-            });
+                });
             setShowCreateAsset_Task(false);
 
 

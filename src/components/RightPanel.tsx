@@ -52,7 +52,6 @@ type Task = {
     due_date: string;
     created_at: string;
     description: string;
-    file_url: string;
     assignees: TaskAssignee[];
     reviewers?: TaskReviewer[];
     pipeline_step?: PipelineStep | null;

@@ -110,7 +110,14 @@ export default function ProjectShot() {
     const [sequences, setSequences] = useState<Sequence[]>([]);
     const [, setIsLoadingSequences] = useState(false);
     const [showCreateShot, setShowCreateShot] = useState(false);
-    const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+    const [expandedCategories, setExpandedCategories] = useState<string[]>(() => {
+        try {
+            const saved = localStorage.getItem('shot_expanded_categories');
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
     const [selectedShot, setSelectedShot] = useState<SelectedShot | null>(null);
     const [editingField, setEditingField] = useState<EditingField | null>(null);
     const [showStatusMenu, setShowStatusMenu] = useState<SelectedShot | null>(null);
@@ -209,6 +216,10 @@ export default function ProjectShot() {
             return () => document.removeEventListener("click", closeMenu);
         }
     }, [contextMenu]);
+
+    useEffect(() => {
+        localStorage.setItem('shot_expanded_categories', JSON.stringify(expandedCategories));
+    }, [expandedCategories]);
 
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
@@ -444,7 +455,10 @@ export default function ProjectShot() {
             );
 
             setShotData(mappedData);
-            setExpandedCategories(mappedData.map(category => category.category));
+            setExpandedCategories(prev => {
+                if (prev.length > 0) return prev; // มีค่า saved อยู่แล้ว
+                return mappedData.map((category: ShotCategory) => category.category); // ครั้งแรก เปิดทั้งหมด
+            });
             syncSelectedShotThumbnail(mappedData);
 
         } catch (err) {

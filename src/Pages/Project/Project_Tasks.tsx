@@ -61,7 +61,6 @@ type Task = {
     due_date: string;
     created_at: string;
     description: string;
-    file_url: string;
     assignees: TaskAssignee[];
     reviewers: TaskReviewer[]; // ⭐ เพิ่ม
     pipeline_step: PipelineStep | null;  // ⭐ เพิ่มบรรทัดนี้
@@ -227,7 +226,6 @@ const [pageSize, setPageSize] = useState(50);
         start_date: '',
         due_date: '',
         description: '',
-        file_url: '',
     });
 
     // เพิ่ม state สำหรับ entity options
@@ -333,7 +331,6 @@ const [pageSize, setPageSize] = useState(50);
                 start_date: createTaskForm.start_date || null,
                 due_date: createTaskForm.due_date || null,
                 description: createTaskForm.description || null,
-                file_url: createTaskForm.file_url || null,
                 pipeline_step_id: null
             };
 
@@ -366,7 +363,6 @@ const [pageSize, setPageSize] = useState(50);
                 start_date: '',
                 due_date: '',
                 description: '',
-                file_url: ''
             });
 
             closeModal();
@@ -660,7 +656,6 @@ const [pageSize, setPageSize] = useState(50);
             start_date: '',
             due_date: '',
             description: '',
-            file_url: ''
             // ⭐ ลบ pipeline_step_id ออก
         });
     };
@@ -2349,6 +2344,89 @@ const pagedGroups = useMemo(() => {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* ── Pagination footer ── */}
+{!isLoadingSequences && !fetchError && totalTasks > 0 && (
+  <div
+    className="flex items-center justify-between px-4 py-2 shrink-0 border-t border-gray-800 bg-gray-900"
+    style={{ fontSize: 11, color: 'rgba(100,120,160,0.7)' }}
+  >
+    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+      {displayTotal === 0 ? '0' : `${(page - 1) * pageSize + 1} – ${Math.min(page * pageSize, displayTotal)}`}
+      <span style={{ color: 'rgba(70,90,120,0.7)', margin: '0 4px' }}>of</span>
+      {displayTotal}
+      <span style={{ color: 'rgba(70,90,120,0.7)', marginLeft: 4 }}>tasks</span>
+    </span>
+
+    <div className="flex items-center gap-3">
+      {/* Rows per page */}
+      <div className="flex items-center gap-2">
+        <span style={{ color: 'rgba(70,90,120,0.7)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Rows</span>
+        <div className="flex items-center" style={{ border: '1px solid rgba(50,70,110,0.4)', borderRadius: 6, overflow: 'hidden' }}>
+          {PAGE_SIZE_OPTIONS.map(size => (
+            <div
+              key={size}
+              onClick={() => { setPageSize(size); setPage(1); }}
+              className="cursor-pointer transition-all"
+              style={{
+                padding: '2px 8px', fontSize: 11,
+                background: pageSize === size ? 'rgba(37,99,235,0.25)' : 'transparent',
+                color:      pageSize === size ? '#93c5fd' : 'rgba(100,120,160,0.7)',
+                borderRight: '1px solid rgba(50,70,110,0.3)',
+                fontWeight:  pageSize === size ? 600 : 400,
+              }}
+            >
+              {size}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Page buttons */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+          style={{ width: 26, height: 24, borderRadius: 5, background: 'transparent', border: '1px solid rgba(60,80,120,0.4)', color: 'rgba(130,155,200,0.8)' }}
+        >
+          <ChevronLeft size={12} />
+        </button>
+
+        {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+          const start = Math.max(1, Math.min(page - 3, totalPages - 6));
+          const p = totalPages > 7 ? start + i : i + 1;
+          const isActive = p === page;
+          return (
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              className="cursor-pointer flex items-center justify-center"
+              style={{
+                minWidth: 26, height: 24, padding: '0 6px', borderRadius: 5, fontSize: 11,
+                background: isActive ? 'rgba(37,99,235,0.3)' : 'transparent',
+                border: `1px solid ${isActive ? 'rgba(96,165,250,0.5)' : 'rgba(60,80,120,0.35)'}`,
+                color:  isActive ? '#93c5fd' : 'rgba(100,125,170,0.8)',
+                fontWeight: isActive ? 600 : 400,
+              }}
+            >
+              {p}
+            </button>
+          );
+        })}
+
+        <button
+          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          disabled={page === totalPages}
+          className="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+          style={{ width: 26, height: 24, borderRadius: 5, background: 'transparent', border: '1px solid rgba(60,80,120,0.4)', color: 'rgba(130,155,200,0.8)' }}
+        >
+          <ChevronRight size={12} />
+        </button>
+      </div>
+    </div>
+  </div>
+)}
                 </div>
 
                 {/* Right Panel - Floating Card */}
@@ -2610,88 +2688,7 @@ const pagedGroups = useMemo(() => {
                 document.body
             )}
 
-            {/* ── Pagination footer ── */}
-{!isLoadingSequences && !fetchError && totalTasks > 0 && (
-  <div
-    className="flex items-center justify-between px-4 py-2 shrink-0 border-t border-gray-800 bg-gray-900"
-    style={{ fontSize: 11, color: 'rgba(100,120,160,0.7)' }}
-  >
-    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-      {displayTotal === 0 ? '0' : `${(page - 1) * pageSize + 1} – ${Math.min(page * pageSize, displayTotal)}`}
-      <span style={{ color: 'rgba(70,90,120,0.7)', margin: '0 4px' }}>of</span>
-      {displayTotal}
-      <span style={{ color: 'rgba(70,90,120,0.7)', marginLeft: 4 }}>tasks</span>
-    </span>
-
-    <div className="flex items-center gap-3">
-      {/* Rows per page */}
-      <div className="flex items-center gap-2">
-        <span style={{ color: 'rgba(70,90,120,0.7)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Rows</span>
-        <div className="flex items-center" style={{ border: '1px solid rgba(50,70,110,0.4)', borderRadius: 6, overflow: 'hidden' }}>
-          {PAGE_SIZE_OPTIONS.map(size => (
-            <div
-              key={size}
-              onClick={() => { setPageSize(size); setPage(1); }}
-              className="cursor-pointer transition-all"
-              style={{
-                padding: '2px 8px', fontSize: 11,
-                background: pageSize === size ? 'rgba(37,99,235,0.25)' : 'transparent',
-                color:      pageSize === size ? '#93c5fd' : 'rgba(100,120,160,0.7)',
-                borderRight: '1px solid rgba(50,70,110,0.3)',
-                fontWeight:  pageSize === size ? 600 : 400,
-              }}
-            >
-              {size}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Page buttons */}
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-          disabled={page === 1}
-          className="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
-          style={{ width: 26, height: 24, borderRadius: 5, background: 'transparent', border: '1px solid rgba(60,80,120,0.4)', color: 'rgba(130,155,200,0.8)' }}
-        >
-          <ChevronLeft size={12} />
-        </button>
-
-        {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-          const start = Math.max(1, Math.min(page - 3, totalPages - 6));
-          const p = totalPages > 7 ? start + i : i + 1;
-          const isActive = p === page;
-          return (
-            <button
-              key={p}
-              onClick={() => setPage(p)}
-              className="cursor-pointer flex items-center justify-center"
-              style={{
-                minWidth: 26, height: 24, padding: '0 6px', borderRadius: 5, fontSize: 11,
-                background: isActive ? 'rgba(37,99,235,0.3)' : 'transparent',
-                border: `1px solid ${isActive ? 'rgba(96,165,250,0.5)' : 'rgba(60,80,120,0.35)'}`,
-                color:  isActive ? '#93c5fd' : 'rgba(100,125,170,0.8)',
-                fontWeight: isActive ? 600 : 400,
-              }}
-            >
-              {p}
-            </button>
-          );
-        })}
-
-        <button
-          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-          disabled={page === totalPages}
-          className="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
-          style={{ width: 26, height: 24, borderRadius: 5, background: 'transparent', border: '1px solid rgba(60,80,120,0.4)', color: 'rgba(130,155,200,0.8)' }}
-        >
-          <ChevronRight size={12} />
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            
         </div>
     );
 }

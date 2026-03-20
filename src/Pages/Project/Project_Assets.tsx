@@ -142,7 +142,14 @@ export default function Project_Assets() {
 
     const navigate = useNavigate();
     const [showCreateAsset, setShowCreateAsset] = useState(false);
-    const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+    const [expandedCategories, setExpandedCategories] = useState<string[]>(() => {
+        try {
+            const saved = localStorage.getItem('asset_expanded_categories');
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
     const [assetData, setAssetData] = useState<Category[]>([]);
     const [selectedAsset, setSelectedAsset] = useState<SelectedAsset | null>(null);
     const [editingField, setEditingField] = useState<EditingField | null>(null);
@@ -302,6 +309,10 @@ export default function Project_Assets() {
     }, [isAssetDragging]);
 
     useEffect(() => {
+        localStorage.setItem('asset_expanded_categories', JSON.stringify(expandedCategories));
+    }, [expandedCategories]);
+
+    useEffect(() => {
         if (assetData.length > 0) {
             assetData.forEach(category => {
                 category.assets.forEach(asset => {
@@ -338,7 +349,10 @@ export default function Project_Assets() {
                 )
                 .map((category: Category) => category.category);
 
-            setExpandedCategories(categoriesToExpand);
+            setExpandedCategories(prev => {
+                if (prev.length > 0) return prev; // มีค่า saved อยู่แล้ว
+                return categoriesToExpand; // ครั้งแรก เปิดทั้งหมด
+            });
 
             // Sync selected asset
             syncSelectedAssetThumbnail(data);
