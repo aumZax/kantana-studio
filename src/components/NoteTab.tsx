@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { FileText, Calendar, Users, Paperclip, Check, X, Plus, Search, NotebookText, Pencil } from 'lucide-react';
+import { FileText, Calendar, Users, Check, X, Plus, Search, NotebookText, Pencil } from 'lucide-react';
 import ENDPOINTS from '../config';
 import PixelLoadingSkeleton from './PixelLoadingSkeleton';
 
