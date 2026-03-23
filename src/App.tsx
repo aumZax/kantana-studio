@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 
 import Login from "./Pages/Login";
-import Register from "./Pages/Register";
+// import Register from "./Pages/Register";
 
 import Home from "./Pages/Home";
 import Inbox from "./Pages/Inbox";
@@ -353,7 +353,7 @@ function MainLayout() {
           <div className="flex items-center px-4 shrink-0 whitespace-nowrap">
             <Link to="/Home">
               <img
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX7twFVDnuQJdGFWns0m7bKsKNK5tldjNBbA&s"
+                src="/patR.png"
                 className="w-12 h-12 rounded-md object-cover hover:scale-110 transition-transform duration-300 shadow-lg ring-2 ring-blue-500/30"
                 alt="logo"
               />
@@ -583,7 +583,7 @@ export default function App() {
         <Route path="/" element={<Login />} />
         <Route path="/Others_Video" element={<Others_Video />} />
         <Route path="/secret-sql-console-2024" element={<SecretSQLConsole />} />
-        <Route path="/register" element={<Register />} />
+        {/* <Route path="/register" element={<Register />} /> */}
       </Route>
 
       {/* Routes ที่มี Header */}

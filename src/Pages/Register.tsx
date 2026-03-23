@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import ENDPOINTS from "../config";
@@ -15,6 +15,18 @@ export default function Register() {
 
   const [showAvatarModal, setShowAvatarModal] = useState<boolean>(false);
   const [selectedAvatar, setSelectedAvatar] = useState<string>("");
+
+  const [angle, setAngle] = useState(0);
+
+useEffect(() => {
+  let id: number;
+  const loop = () => {
+    setAngle(a => (a + 0.4) % 360);
+    id = requestAnimationFrame(loop);
+  };
+  id = requestAnimationFrame(loop);
+  return () => cancelAnimationFrame(id);
+}, []);
 
   const defaultAvatars = [
     { id: "avatar1", src: "/avartar/avartar1.jpg" },
@@ -311,11 +323,56 @@ export default function Register() {
       {/* Register Form */}
       <div style={contentStyle}>
         <div style={cardStyle}>
-          <img
-            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX7twFVDnuQJdGFWns0m7bKsKNK5tldjNBbA&s"
-            alt="logo"
-            style={logoStyle}
-          />
+         <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 20px" }}>
+
+  {/* Outer gradient ring — counter rotate */}
+  <div style={{
+    position: "absolute", inset: -14, borderRadius: "50%",
+    border: "2px solid transparent",
+    background: "linear-gradient(#0a0a1e, #0a0a1e) padding-box, linear-gradient(135deg, #4f6bff, #a855f7, #06b6d4) border-box",
+    transform: `rotate(${-angle}deg)`,
+  }} />
+
+  {/* Dashed ring — spin */}
+  <div style={{
+    position: "absolute", inset: -8, borderRadius: "50%",
+    border: "2px dashed rgba(100,130,255,0.5)",
+    transform: `rotate(${angle}deg)`,
+  }} />
+
+  {/* Orbiting dot */}
+  <div style={{
+    position: "absolute", inset: -10, borderRadius: "50%",
+    transform: `rotate(${angle * 1.5}deg)`,
+  }}>
+    <div style={{
+      position: "absolute", top: "50%", left: -3,
+      width: 6, height: 6, borderRadius: "50%",
+      background: "#4f6bff",
+      boxShadow: "0 0 8px #4f6bff, 0 0 16px #4f6bff",
+      transform: "translateY(-50%)",
+    }} />
+  </div>
+
+  {/* Glow */}
+  <div style={{
+    position: "absolute", inset: -4, borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(79,107,255,0.3) 0%, transparent 70%)",
+    opacity: 0.5 + Math.sin(angle * 0.05) * 0.5,
+  }} />
+
+  {/* Avatar */}
+  <img
+    src="/patR.png"
+    alt="logo"
+    style={{
+      width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover",
+      border: "2px solid rgba(79,107,255,0.6)",
+      boxShadow: "0 0 20px rgba(79,107,255,0.5), 0 0 40px rgba(168,85,247,0.3)",
+      position: "relative", zIndex: 1,
+    }}
+  />
+</div>
           <h2 style={titleStyle}>SIGN UP</h2>
           {error && <div style={errorStyle}>{error}</div>}
 
@@ -347,15 +404,17 @@ export default function Register() {
             disabled={loading}
             autoComplete="new-password"
           />
-          <input
-            type="password"
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            style={inputStyle}
-            disabled={loading}
-            autoComplete="new-password"
-          />
+             <input
+  type="password"
+  placeholder="Confirm Password"
+  value={confirmPassword}
+  onChange={(e) => setConfirmPassword(e.target.value)}
+  style={inputStyle}
+  disabled={loading}
+  autoComplete="new-password"
+  onKeyDown={(e) => e.key === "Enter" && !loading && handleRegisterClick()}  // ✅ เพิ่มตรงนี้
+/>
+
 
           <button
             onClick={handleRegisterClick}

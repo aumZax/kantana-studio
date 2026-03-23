@@ -263,7 +263,7 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
               </span>
             </button>
 
-            {!fromMainNav && (
+            {/* {!fromMainNav && (
               <button
                 onClick={() => setActiveTab("viewers")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-medium border-b-2 transition-all bg-gradient-to-r from-gray-700 to-gray-700 ${activeTab === "viewers"
@@ -277,7 +277,7 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
                   {viewers.length}
                 </span>
               </button>
-            )}
+            )} */}
 
           </div>
 
@@ -431,7 +431,7 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
                   <Eye className="w-8 h-8 text-gray-600" />
                 </div>
                 <p className="text-gray-400 text-sm">No viewers added yet.</p>
-                <button onClick={() => setShowAddViewer(true)} disabled={!canManage} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded flex items-center gap-2">
+                <button onClick={() => setShowAddViewer(true)} disabled={!canManage} className="px-4 py-2 bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-700  text-white text-sm rounded flex items-center gap-2">
                   <Plus className="w-4 h-4" /> Add First Viewer
                 </button>
               </div>
@@ -631,9 +631,9 @@ function AddViewerModal({
             <Eye className="w-5 h-5 text-emerald-400" />
             <h3 className="text-base font-semibold text-white">Add Project Viewer</h3>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+          <div onClick={onClose} className="text-gray-400 hover:text-white transition-colors cursor-pointer">
             <X className="w-5 h-5" />
-          </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -667,10 +667,10 @@ function AddViewerModal({
                     </div>
                   ) : (
                     filtered.slice(0, 15).map((u) => (
-                      <button
+                      <div
                         key={u.id}
                         onMouseDown={() => { setSelected(u); setSearch(""); setShowDropdown(false); }}
-                        className="w-full px-3 py-2.5 text-left hover:bg-gray-800 flex items-center gap-3 transition-colors"
+                        className="w-full px-3 py-2.5 text-left hover:bg-gray-800 flex items-center gap-3 transition-colors cursor-pointer"
                       >
                         {u.imageURL ? (
                           <img src={`${ENDPOINTS.image_url}${u.imageURL}`} className="w-8 h-8 rounded-full object-cover" alt={u.username} />
@@ -686,7 +686,7 @@ function AddViewerModal({
                         {u.role && (
                           <span className="ml-auto text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">{u.role}</span>
                         )}
-                      </button>
+                      </div>
                     ))
                   )}
                 </div>

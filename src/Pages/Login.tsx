@@ -14,18 +14,18 @@ export default function Login() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    const lastPath = localStorage.getItem("lastPath") || "/Home";
-    navigate(lastPath, { replace: true });
-  } else {
-    setChecking(false); // ไม่มี token → แสดง login ได้เลย
-  }
-}, []);
+    const token = localStorage.getItem("token");
+    if (token) {
+      const lastPath = localStorage.getItem("lastPath") || "/Home";
+      navigate(lastPath, { replace: true });
+    } else {
+      setChecking(false); // ไม่มี token → แสดง login ได้เลย
+    }
+  }, []);
 
-if (checking) return null;
+  if (checking) return null;
 
-    const handleLogin = async () => {
+  const handleLogin = async () => {
     if (!identifier || !password) {
       setError("Please enter username/email and password");
       return;
@@ -49,13 +49,13 @@ if (checking) return null;
       // console.log("✅ Logged in user:", user);
 
       localStorage.clear();
-      
+
       localStorage.setItem("authUser", JSON.stringify({
         id: user.id,
         username: user.username,
         email: user.email,
         role: user.role,
-        imageURL: user.imageURL, 
+        imageURL: user.imageURL,
       }));
 
       localStorage.setItem("token", data.token);
@@ -187,12 +187,71 @@ if (checking) return null;
       {/* ===== Login Content ===== */}
       <div style={contentStyle}>
         <div style={cardStyle}>
-          <img
-            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX7twFVDnuQJdGFWns0m7bKsKNK5tldjNBbA&s"
-            alt="logo"
-            style={logoStyle}
-          />
+          {/* Avatar Container */}
+          <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 24px" }}>
 
+            {/* Rotating dashed ring */}
+            <div style={{
+              position: "absolute", inset: -8,
+              borderRadius: "50%",
+              border: "2px dashed rgba(100, 130, 255, 0.5)",
+              animation: "spin 6s linear infinite",
+            }} />
+
+            {/* Rotating solid ring (counter) */}
+            <div style={{
+              position: "absolute", inset: -14,
+              borderRadius: "50%",
+              border: "1.5px solid transparent",
+              background: "linear-gradient(#0a0a1e, #0a0a1e) padding-box, linear-gradient(135deg, #4f6bff, #a855f7, #06b6d4) border-box",
+              animation: "spinReverse 4s linear infinite",
+            }} />
+
+            {/* Glow pulse */}
+            <div style={{
+              position: "absolute", inset: -4,
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(79,107,255,0.35) 0%, transparent 70%)",
+              animation: "pulse 2.5s ease-in-out infinite",
+            }} />
+
+            {/* Dot orbiting */}
+            <div style={{
+              position: "absolute", inset: -10,
+              borderRadius: "50%",
+              animation: "spin 3s linear infinite",
+            }}>
+              <div style={{
+                position: "absolute", top: "50%", left: -3,
+                width: 6, height: 6,
+                borderRadius: "50%",
+                background: "#4f6bff",
+                boxShadow: "0 0 8px #4f6bff, 0 0 16px #4f6bff",
+                transform: "translateY(-50%)",
+              }} />
+            </div>
+
+            {/* Avatar image */}
+            <img
+              src="/patR.png"
+              alt="logo"
+              style={{
+                width: "100%", height: "100%",
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: "2px solid rgba(79,107,255,0.6)",
+                boxShadow: "0 0 20px rgba(79,107,255,0.5), 0 0 40px rgba(168,85,247,0.3)",
+                position: "relative", zIndex: 1,
+              }}
+            />
+          </div>
+
+          {/* Keyframes — ใส่ครั้งเดียวในไฟล์ */}
+          <style>{`
+  @keyframes spin         { from { transform: rotate(0deg) }   to { transform: rotate(360deg) } }
+  @keyframes spinReverse  { from { transform: rotate(0deg) }   to { transform: rotate(-360deg) } }
+  @keyframes pulse        { 0%,100% { opacity: 0.5; transform: scale(1) }  50% { opacity: 1; transform: scale(1.08) } }
+`}</style>
           <h2 style={titleStyle}>SIGN IN</h2>
 
           {error && <div style={errorStyle}>{error}</div>}
@@ -224,7 +283,7 @@ if (checking) return null;
             {loading ? "Logging in..." : "Login"}
           </button>
 
-          <p style={{ marginTop: 20, fontSize: "0.9rem", color: "white" }}>
+          {/* <p style={{ marginTop: 20, fontSize: "0.9rem", color: "white" }}>
             Don't have an account?{" "}
             <span
               style={{ color: "#667eea", cursor: "pointer" }}
@@ -232,7 +291,7 @@ if (checking) return null;
             >
               sign up
             </span>
-          </p>
+          </p> */}
         </div>
       </div>
     </>
