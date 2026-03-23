@@ -347,7 +347,12 @@ function MainLayout() {
       <SaveLastPath />
       {subMenuPortal}
 
-      <header className="fixed w-full h-14 leading-tight shadow-2xl flex items-center justify-between px-2 z-[150] bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-gray-700/50 backdrop-blur-sm">
+      <header className="fixed w-full h-14 leading-tight shadow-2xl flex items-center justify-between px-2 z-[150] border-b border-gray-700/50 backdrop-blur-sm"
+         style={{
+                    background: "rgba(3, 4, 15, 0.72)",
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                    boxShadow: "0 1px 30px rgba(0,0,0,0.5)",
+                }}>
         {/* LEFT */}
         <div className="flex items-center gap-5 text-sm">
           <div className="flex items-center px-4 shrink-0 whitespace-nowrap">

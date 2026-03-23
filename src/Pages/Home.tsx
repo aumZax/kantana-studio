@@ -606,8 +606,16 @@ export default function Home() {
 
                 key={project.id}
                 onContextMenu={(e) => handleContextMenu(e, project.id)}
-                className={` rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] border-2 ${isMember ? 'border-purple-300' : 'border-blue-300'
-                    }`}
+                className="rounded-xl overflow-hidden transition-all duration-300 transform hover:scale-[1.02]"
+                style={{
+                    background: "rgba(6, 8, 22, 0.72)",
+                    backdropFilter: "blur(12px)",
+                    WebkitBackdropFilter: "blur(12px)",
+                    border: isMember
+                        ? "1px solid rgba(140,80,255,0.22)"
+                        : "1px solid rgba(60,100,255,0.18)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
+                }}
             >
                 <input
                     type="file"
@@ -734,8 +742,140 @@ export default function Home() {
     };
 
     return (
-        <div className="pt-14 h-screen flex flex-col bg-gray-900">
-            <header className="w-full h-22 px-4 flex items-center justify-between fixed z-[50] z-40 bg-gradient-to-r from-gray-00 via-gray-800 to-gray-900 border-b border-gray-700/50 backdrop-blur-sm shadow-lg">
+        <div className="pt-14 h-screen flex flex-col" style={{ position: "relative" }}>
+
+            {/* ===== Canvas Starfield Background ===== */}
+            <canvas
+                ref={(canvas) => {
+                    if (!canvas || (canvas as any)._initialized) return;
+                    (canvas as any)._initialized = true;
+                    const ctx = canvas.getContext("2d")!;
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+
+                    // Stars
+                    const stars = Array.from({ length: 220 }, () => ({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        r: Math.random() * 1.4 + 0.2,
+                        alpha: Math.random() * 0.7 + 0.2,
+                        speed: Math.random() * 0.3 + 0.05,
+                        drift: (Math.random() - 0.5) * 0.15,
+                    }));
+
+                    // Shooting stars
+                    const shoots: { x: number; y: number; vx: number; vy: number; len: number; alpha: number; life: number }[] = [];
+                    const spawnShoot = () => {
+                        shoots.push({
+                            x: Math.random() * canvas.width,
+                            y: Math.random() * canvas.height * 0.5,
+                            vx: 4 + Math.random() * 4,
+                            vy: 1.5 + Math.random() * 2,
+                            len: 80 + Math.random() * 80,
+                            alpha: 1,
+                            life: 1,
+                        });
+                    };
+                    setInterval(spawnShoot, 2800);
+
+                    let frame = 0;
+                    const draw = () => {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                        // Deep space gradient
+                        const bg = ctx.createLinearGradient(0, 0, canvas.width * 0.6, canvas.height);
+                        bg.addColorStop(0, "#03040f");
+                        bg.addColorStop(0.45, "#060818");
+                        bg.addColorStop(1, "#04050e");
+                        ctx.fillStyle = bg;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        // Nebula 1 — blue top-right
+                        const n1 = ctx.createRadialGradient(
+                            canvas.width * 0.78, canvas.height * 0.18, 0,
+                            canvas.width * 0.78, canvas.height * 0.18, 320
+                        );
+                        n1.addColorStop(0, "rgba(50,90,255,0.13)");
+                        n1.addColorStop(0.5, "rgba(40,70,200,0.06)");
+                        n1.addColorStop(1, "transparent");
+                        ctx.fillStyle = n1;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        // Nebula 2 — purple bottom-left
+                        const n2 = ctx.createRadialGradient(
+                            canvas.width * 0.15, canvas.height * 0.75, 0,
+                            canvas.width * 0.15, canvas.height * 0.75, 280
+                        );
+                        n2.addColorStop(0, "rgba(140,50,255,0.11)");
+                        n2.addColorStop(0.5, "rgba(100,30,180,0.05)");
+                        n2.addColorStop(1, "transparent");
+                        ctx.fillStyle = n2;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        // Nebula 3 — cyan mid
+                        const n3 = ctx.createRadialGradient(
+                            canvas.width * 0.5, canvas.height * 0.5, 0,
+                            canvas.width * 0.5, canvas.height * 0.5, 200
+                        );
+                        n3.addColorStop(0, "rgba(0,180,220,0.05)");
+                        n3.addColorStop(1, "transparent");
+                        ctx.fillStyle = n3;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        // Stars
+                        frame++;
+                        stars.forEach((s) => {
+                            s.y += s.speed;
+                            s.x += s.drift;
+                            if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; }
+                            if (s.x > canvas.width) s.x = 0;
+                            if (s.x < 0) s.x = canvas.width;
+                            const twinkle = s.alpha * (0.75 + 0.25 * Math.sin(frame * 0.03 + s.x));
+                            ctx.beginPath();
+                            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                            ctx.fillStyle = `rgba(200,220,255,${twinkle})`;
+                            ctx.fill();
+                        });
+
+                        // Shooting stars
+                        for (let i = shoots.length - 1; i >= 0; i--) {
+                            const sh = shoots[i];
+                            sh.x += sh.vx;
+                            sh.y += sh.vy;
+                            sh.life -= 0.018;
+                            if (sh.life <= 0) { shoots.splice(i, 1); continue; }
+                            const grad = ctx.createLinearGradient(sh.x, sh.y, sh.x - sh.len, sh.y - sh.len * 0.38);
+                            grad.addColorStop(0, `rgba(200,220,255,${sh.life * 0.9})`);
+                            grad.addColorStop(1, "transparent");
+                            ctx.strokeStyle = grad;
+                            ctx.lineWidth = 1.2;
+                            ctx.beginPath();
+                            ctx.moveTo(sh.x, sh.y);
+                            ctx.lineTo(sh.x - sh.len, sh.y - sh.len * 0.38);
+                            ctx.stroke();
+                        }
+
+                        requestAnimationFrame(draw);
+                    };
+                    draw();
+
+                    window.addEventListener("resize", () => {
+                        canvas.width = window.innerWidth;
+                        canvas.height = window.innerHeight;
+                    });
+                }}
+                style={{
+                    position: "fixed", inset: 0, zIndex: -1,
+                    width: "100%", height: "100%", display: "block",
+                }}
+            />
+            <header
+                className="w-full h-22 px-4 flex items-center justify-between fixed z-[50] backdrop-blur-md"
+                style={{
+                    background: "rgba(3, 4, 15, 0.72)",
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                    boxShadow: "0 1px 30px rgba(0,0,0,0.5)",
+                }}>
                 <div className="flex flex-col">
                     <h2 className="text-3xl font-semibold text-gray-200 flex items-center gap-3">
                         Projects
