@@ -417,8 +417,9 @@ const errorStyle: React.CSSProperties = {
           textTransform: "uppercase",
           fontFamily: "'Orbitron', sans-serif",
           marginBottom: 6,
+          width:280,
         }}>
-          ✦ Mission Control ✦
+          ✦ Pipeline Animation Thailand ✦
         </p>
         <div style={{
           width: 60, height: 1, margin: "0 auto",
