@@ -141,13 +141,6 @@ export default function Login() {
     fontSize: "0.9rem",
   };
 
-  const logoStyle: React.CSSProperties = {
-    width: "90px",
-    height: "90px",
-    borderRadius: "50%",
-    margin: "0 auto 20px",
-    boxShadow: "0 10px 20px rgba(0,0,0,0.4)",
-  };
 
   /* ---------- render ---------- */
   return (

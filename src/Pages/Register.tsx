@@ -291,15 +291,6 @@ useEffect(() => {
     border: "1px solid rgba(255, 107, 107, 0.3)",
   };
 
-  const logoStyle: React.CSSProperties = {
-    width: "90px",
-    height: "90px",
-    objectFit: "cover",
-    borderRadius: "50%",
-    margin: "0 auto 20px",
-    display: "block",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
-  };
 
   return (
     <>
