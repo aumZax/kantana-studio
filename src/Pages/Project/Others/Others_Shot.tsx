@@ -37,7 +37,6 @@ const statusConfig = {
 };
 
 type StatusType = keyof typeof statusConfig;
-type NoteType = 'Client' | 'Internal';
 
 
 interface Note {

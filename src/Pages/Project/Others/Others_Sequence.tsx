@@ -22,7 +22,6 @@ const statusConfig = {
 };
 
 type StatusType = keyof typeof statusConfig;
-type NoteType = 'Client' | 'Internal';
 
 
 // ⭐ เพิ่ม type ที่ขาดหาย
