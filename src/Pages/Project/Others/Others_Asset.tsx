@@ -176,7 +176,7 @@ export default function Others_Asset() {
     const [editingField, setEditingField] = useState<string | null>(null);
     const [showPreview, setShowPreview] = useState(false);
     const [noteModalPosition, setNoteModalPosition] = useState({ x: 0, y: 0 });
-    const [type, setType] = useState<NoteType | null>(null);
+    const [type, setType] = useState<NoteType | null>('Client');
     const [body, setBody] = useState('');
     const [notes, setNotes] = useState<Note[]>([]);
     const [loadingNotes, setLoadingNotes] = useState(false);
@@ -222,7 +222,6 @@ export default function Others_Asset() {
     const [subject, setSubject] = useState(assetData?.asset_name ? `Note on ${assetData.asset_name}` : "");
     const [currentNoteId, setCurrentNoteId] = useState(null);
 
-    const [typeOpen, setTypeOpen] = useState(false); // เพิ่มบรรทัดนี้
 
     const [loadingTasks, setLoadingTasks] = useState(false);
 
@@ -684,7 +683,7 @@ export default function Others_Asset() {
             setFiles([]);
             setSubject(assetData?.asset_name ? `Note on ${assetData.asset_name}` : '');
             setBody('');
-            setType(null);
+            setType('Client');
 
             fetchNotes();
 
@@ -2099,44 +2098,7 @@ export default function Others_Asset() {
                                     />
                                 </div>
 
-                                <div className="space-y-1.5 relative">
-                                    <label className="block text-xs font-medium text-gray-300">
-                                        Type <span className="text-red-400">*</span>
-                                    </label>
-
-                                    <div
-                                        onClick={() => setTypeOpen((prev) => !prev)}
-                                        onBlur={() => setTimeout(() => setTypeOpen(false), 200)}
-                                        tabIndex={0}
-                                        className={`w-full h-8 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-sm cursor-pointer
-                                flex items-center justify-between
-                                focus:outline-none focus:ring-2 focus:ring-blue-500/60
-                                ${type === null ? 'text-blue-400/40' : 'text-blue-50'}
-                            `}
-                                    >
-                                        <span>{type ?? '— Please select —'}</span>
-                                        <span className="text-blue-400/60 text-xs">{typeOpen ? '▲' : '▼'}</span>
-                                    </div>
-
-                                    {typeOpen && (
-                                        <div className="absolute z-10 mt-1 w-full bg-[#0a1018] border border-blue-500/30 rounded-lg shadow-lg overflow-hidden">
-                                            {(['Client', 'Internal'] as NoteType[]).map((option) => (
-                                                <div
-                                                    key={option}
-                                                    onClick={() => {
-                                                        setType(option);
-                                                        setTypeOpen(false);
-                                                    }}
-                                                    className={`px-3 py-1.5 text-sm cursor-pointer hover:bg-blue-500/20
-                        ${type === option ? 'text-blue-300 bg-blue-500/10' : 'text-gray-200'}
-                    `}
-                                                >
-                                                    {option}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                          
 
                                 <div className="space-y-1.5">
                                     <label className="block text-xs font-medium text-gray-300">

@@ -123,7 +123,7 @@ export default function Others_Sequence() {
     const [isResizing, setIsResizing] = useState(false);
     const [rightPanelWidth, setRightPanelWidth] = useState(600);
     const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-    const [type, setType] = useState<string | null>(null);
+    const [type, setType] = useState<string | null>('Client');
     const [loadingNotes, setLoadingNotes] = useState(false);
     const [openAssignedDropdown, setOpenAssignedDropdown] = useState<string | number | null>(null);
     const [files, setFiles] = useState<File[]>([]);
@@ -173,7 +173,6 @@ export default function Others_Sequence() {
     const [isCreatingAsset, setIsCreatingAsset] = useState(false);
     const [createAssetForm, setCreateAssetForm] = useState({ asset_name: '', asset_type: 'Character', description: '' });
 
-    const [typeOpen, setTypeOpen] = useState(false); // เพิ่มบรรทัดนี้
 
     //============================================================================================================================================//
 
@@ -610,7 +609,7 @@ export default function Others_Sequence() {
             setFiles([]);
             setSubject(SequenceData?.sequence ? `Note on ${SequenceData.sequence}` : "");
             setBody('');
-            setType(null);
+            setType('Client');
 
             fetchNotes();
 
@@ -1722,45 +1721,7 @@ export default function Others_Sequence() {
                                     />
                                 </div>
 
-                                {/* Type */}
-                                <div className="space-y-1.5 relative">
-                                    <label className="block text-xs font-medium text-gray-300">
-                                        Type <span className="text-red-400">*</span>
-                                    </label>
-
-                                    <div
-                                        onClick={() => setTypeOpen((prev) => !prev)}
-                                        onBlur={() => setTimeout(() => setTypeOpen(false), 200)}
-                                        tabIndex={0}
-                                        className={`w-full h-8 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-sm cursor-pointer
-                                            flex items-center justify-between
-                                            focus:outline-none focus:ring-2 focus:ring-blue-500/60
-                                            ${type === null ? 'text-blue-400/40' : 'text-blue-50'}
-                                        `}
-                                    >
-                                        <span>{type ?? '— Please select —'}</span>
-                                        <span className="text-blue-400/60 text-xs">{typeOpen ? '▲' : '▼'}</span>
-                                    </div>
-
-                                    {typeOpen && (
-                                        <div className="absolute z-10 mt-1 w-full bg-[#0a1018] border border-blue-500/30 rounded-lg shadow-lg overflow-hidden">
-                                            {(['Client', 'Internal'] as NoteType[]).map((option) => (
-                                                <div
-                                                    key={option}
-                                                    onClick={() => {
-                                                        setType(option);
-                                                        setTypeOpen(false);
-                                                    }}
-                                                    className={`px-3 py-1.5 text-sm cursor-pointer hover:bg-blue-500/20
-                        ${type === option ? 'text-blue-300 bg-blue-500/10' : 'text-gray-200'}
-                    `}
-                                                >
-                                                    {option}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                          
 
                                 {/* Message */}
                                 <div className="space-y-1.5">

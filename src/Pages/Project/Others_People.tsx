@@ -69,7 +69,7 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; peopleId: string; peopleEmail: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; peopleId: string; peopleEmail: string } | null>(null);
   const [deleteViewerConfirm, setDeleteViewerConfirm] = useState<ProjectViewer | null>(null);
-  const [columnWidths] = useState<number[]>([48, 220, 220, 260, 160, 200]);
+  const [columnWidths] = useState<number[]>([220, 220, 260, 160, 200]);
 
 
 
@@ -327,7 +327,7 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
               <table className="border-collapse table-fixed" style={{ width: columnWidths.reduce((a, b) => a + b, 0) }}>
                 <thead className="select-none">
                   <tr>
-                    {["", "Name", "Status", "Email", "Permission", "Groups"].map((title, i) => (
+                    {[ "Name", "Email", "Permission", "Groups"].map((title, i) => (
                       <th key={i} className="relative px-2 py-2 text-left text-xs font-semibold uppercase sticky top-0 z-30 bg-gray-800 border border-gray-700" style={{ width: columnWidths[i] }}>
                         {title}
                         <div onMouseDown={(e) => startResize(e, i)} className="absolute top-0 right-0 h-full w-1 cursor-col-resize hover:bg-blue-500" />
@@ -338,9 +338,7 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
                 <tbody className="bg-gray-900">
                   {people.map((p) => (
                     <tr key={p.id} className="border-t border-gray-700 hover:bg-gray-800" onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, peopleId: p.id.toString(), peopleEmail: p.email }); }}>
-                      <td className="px-2 py-2 border-r border-gray-700" style={{ width: columnWidths[0] }}>
-                        <input type="checkbox" />
-                      </td>
+                     
 
                       {/* Name */}
                       <td className="px-3 py-1 border-r border-gray-700 cursor-pointer" style={{ width: columnWidths[1] }} onClick={() => handleCellClick(p.id, "name", p.name)}>
@@ -354,23 +352,7 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
                         )}
                       </td>
 
-                      {/* Status */}
-                      <td className="px-3 py-2 text-sm border-r border-gray-700 cursor-pointer" style={{ width: columnWidths[2] }} onClick={() => handleCellClick(p.id, "status", p.status)}>
-                        {editingCell?.id === p.id && editingCell.field === "status" ? (
-                          <select autoFocus disabled={!canEditPerm} value={editValue} onChange={async (e) => {
-                            const v = e.target.value;
-                            setEditValue(v);
-                            setPeople(people.map(x => x.id === p.id ? { ...x, status: v as Person["status"] } : x));
-                            const actor = JSON.parse(localStorage.getItem("authUser") || "{}");
-                            await fetch(ENDPOINTS.STATUSPEOPLE, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: p.id, status: v, permission: localStorage.getItem("Permiss"), email: actor.email }) }).catch(() => fetchPeople());
-                            setEditingCell(null);
-                          }} onBlur={handleCellBlur} className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1 text-sm text-white focus:outline-none">
-                            <option>Active</option><option>Inactive</option>
-                          </select>
-                        ) : (
-                          <span className={`px-2 py-0.5 rounded-full text-xs ${p.status === "Active" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>{p.status}</span>
-                        )}
-                      </td>
+                  
 
                       {/* Email */}
                       <td className="px-3 py-2 text-sm border-r border-gray-700" style={{ width: columnWidths[3] }}>
@@ -486,14 +468,14 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
       {/* ═══ Context Menu (team) ═══ */}
       {contextMenu && (
         <div
-          className="fixed py-1 z-50 min-w-[150px] bg-gray-800 border border-gray-700 rounded shadow-lg"
+          className="fixed py-1 z-50 min-w-[150px] rounded shadow-lg"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
           hidden={!canEditPerm}
         >
           <button onClick={() => { if (!contextMenu) return; setDeleteConfirm({ show: true, peopleId: contextMenu.peopleId, peopleEmail: contextMenu.peopleEmail }); setContextMenu(null); }}
-            className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center gap-2 text-sm">
-            <Trash2 className="w-4 h-4" /> Delete Person
+            className="w-full px-4 py-2 text-left text-red-400 flex items-center gap-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-600 rounded-lg">
+            <Trash2 className="w-5 h-5 text-slate-50" /> Delete Person
           </button>
         </div>
       )}
@@ -502,7 +484,7 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
-          <div className="relative w-full max-w-md mx-4 rounded-2xl bg-gray-800 border border-gray-700 shadow-2xl p-6">
+          <div className="relative w-full max-w-md mx-4 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl p-6">
             <div className="flex items-start gap-4 mb-6">
               <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center text-2xl">⚠️</div>
               <div>
@@ -510,7 +492,7 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
                 <p className="text-sm text-gray-400">This action cannot be undone.</p>
               </div>
             </div>
-            <div className="rounded-lg bg-gray-900 p-4 mb-6 border border-gray-700">
+            <div className="rounded-lg bg-zinc-800 p-4 mb-6 border border-gray-700">
               <p className="text-gray-300 mb-1">Delete:</p>
               <p className="font-semibold text-gray-100 truncate">"{deleteConfirm.peopleEmail}"</p>
             </div>
@@ -882,30 +864,7 @@ function CreatePersonModal({
             ))}
           </div>
 
-          {/* Status toggle */}
-          <div>
-            <label className="block text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1.5">Status</label>
-            <div className="flex gap-2">
-              {["Active", "Inactive"].map((s) => (
-                <div
-                  key={s}
-                  onClick={() => setForm({ ...form, status: s })}
-                  className={`flex-1 h-9 rounded-lg border text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    form.status === s
-                      ? s === "Active"
-                        ? "bg-green-500/15 border-green-500/40 text-green-300"
-                        : "bg-red-500/12 border-red-500/30 text-red-300"
-                      : "bg-white/[0.03] border-white/10 text-slate-500 hover:text-slate-300"
-                  }`}
-                >
-                  <span className={`w-[7px] h-[7px] rounded-full flex-shrink-0 ${
-                    form.status === s ? (s === "Active" ? "bg-green-400" : "bg-red-400") : "bg-slate-600"
-                  }`} />
-                  {s}
-                </div>
-              ))}
-            </div>
-          </div>
+         
 
 
         </div>
