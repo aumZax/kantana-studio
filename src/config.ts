@@ -1,5 +1,5 @@
 // endpoints.ts
-const BASE_URL = "https://qld-stuck-goes-map.trycloudflare.com";
+const BASE_URL = "http://192.168.0.101";
 // const BASE_URL = "http://localhost:3000";
 
 // maxaaaaaa
@@ -22,7 +22,7 @@ const ENDPOINTS = {
   UPLOAD: `${BASE_URL}/upload`,
   GETPROJECTIMAGES: `${BASE_URL}/project/images`,
   DELETEPROJECT: `${BASE_URL}/deleteProject`,
-  image_url: "https://qld-stuck-goes-map.trycloudflare.com/",
+  image_url: "http://192.168.0.101/",
   videos: `${BASE_URL}/videos`,
   IMAGE_URL: `${BASE_URL}/`,
   UPLOAD_VIDEO: `${BASE_URL}/upload/video`,
