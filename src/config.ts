@@ -1,5 +1,5 @@
 // endpoints.ts
-const BASE_URL = "https://derek-astronomy-subaru-episode.trycloudflare.com";
+const BASE_URL = "https://finest-transport-notices-echo.trycloudflare.com";
 // const BASE_URL = "http://localhost:3000";
 
 // maxaaaaaa
@@ -22,7 +22,7 @@ const ENDPOINTS = {
   UPLOAD: `${BASE_URL}/upload`,
   GETPROJECTIMAGES: `${BASE_URL}/project/images`,
   DELETEPROJECT: `${BASE_URL}/deleteProject`,
-  image_url: "https://derek-astronomy-subaru-episode.trycloudflare.com/",
+  image_url: "https://finest-transport-notices-echo.trycloudflare.com/",
   // image_url: "http://localhost:3000/",
 
   videos: `${BASE_URL}/videos`,
