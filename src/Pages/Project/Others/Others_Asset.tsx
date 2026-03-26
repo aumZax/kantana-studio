@@ -1678,7 +1678,15 @@ export default function Others_Asset() {
                             {['Asset Info', 'Tasks', 'Notes', 'Versions', 'Shots'].map((tab) => (
                                 <button
                                     key={tab}
-                                    onClick={() => setActiveTab(tab)}
+                                    onClick={() => {
+    setActiveTab(tab);
+    setIsPanelOpen(false);
+    setIsNotePanelOpen(false);
+    setTimeout(() => {
+        setSelectedTask(null);
+        setSelectedNote(null);
+    }, 300);
+}}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === tab
                                         ? 'text-white shadow-lg bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-700 hover:to-blue-600'
                                         : 'text-gray-300 bg-gradient-to-r from-gray-700 to-gray-700 hover:from-gray-600 hover:to-gray-600'

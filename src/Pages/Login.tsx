@@ -64,8 +64,6 @@ export default function Login() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
         @keyframes filmScroll {
           0%   { transform: translateY(0); }
           100% { transform: translateY(-50%); }
@@ -75,8 +73,8 @@ export default function Login() {
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes nodePulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(255,200,60,0.5); }
-          50%       { box-shadow: 0 0 0 5px rgba(255,200,60,0); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.5); }
+          50%       { box-shadow: 0 0 0 5px rgba(56,189,248,0); }
         }
         @keyframes scanline {
           0%   { top: -2px; }
@@ -92,75 +90,20 @@ export default function Login() {
           0%,89%,91%,100% { opacity: 1; }
           90% { opacity: 0.55; }
         }
+        @keyframes cardFadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
 
         .login-root {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #0c0c0e;
           font-family: 'DM Sans', sans-serif;
-          position: relative;
-          overflow: hidden;
-        }
-        .login-root::before {
-          content: '';
-          position: fixed;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-          background-size: 44px 44px;
-          pointer-events: none;
         }
 
-        /* ── CARD ── */
-        .card {
-          display: flex;
-          width: 780px;
-          min-height: 480px;
-          border-radius: 4px;
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.07);
-          box-shadow:
-            0 0 0 1px rgba(255,255,255,0.03),
-            0 40px 120px rgba(0,0,0,0.95),
-            0 0 60px rgba(255,200,60,0.03);
-          animation: fadeUp 0.55s cubic-bezier(0.22,1,0.36,1) both;
+        .card-anim {
+          animation: cardFadeUp 0.55s cubic-bezier(0.22,1,0.36,1) both;
         }
 
-        /* ════ LEFT FILM STRIP ════ */
-        .left-panel {
-          width: 200px;
-          flex-shrink: 0;
-          position: relative;
-          overflow: hidden;
-          background: #101012;
-          border-right: 1px solid rgba(255,255,255,0.06);
-          display: flex;
-          flex-direction: column;
-        }
-        .sprocket {
-          position: absolute;
-          top: 0; bottom: 0;
-          width: 18px;
-          background: #090909;
-          z-index: 3;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 10px 0;
-          gap: 12px;
-        }
-        .sprocket.left  { left: 0;  border-right: 1px solid rgba(255,255,255,0.05); }
-        .sprocket.right { right: 0; border-left:  1px solid rgba(255,255,255,0.05); }
-        .sprocket-hole {
-          width: 8px; height: 8px;
-          border-radius: 1.5px;
-          background: #1e1e20;
-          border: 1px solid rgba(255,255,255,0.06);
-          flex-shrink: 0;
-        }
+        /* Film strip scroll */
         .film-track {
           position: absolute;
           top: 0; left: 18px; right: 18px;
@@ -179,24 +122,24 @@ export default function Login() {
           animation: frameFlicker 8s ease-in-out infinite;
           background: #181818;
         }
-        .film-frame-icon {
-          font-size: 24px;
-          opacity: 0.3;
-        }
-        .film-frame-num {
+
+        /* Sprocket holes */
+        .sprocket {
           position: absolute;
-          bottom: 5px; right: 6px;
-          font-family: 'DM Mono', monospace;
-          font-size: 8px;
-          color: rgba(255,200,60,0.4);
-          letter-spacing: 0.1em;
+          top: 0; bottom: 0;
+          width: 18px;
+          background: #090909;
+          z-index: 3;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 10px 0;
+          gap: 12px;
         }
-        .film-frame-bar {
-          position: absolute;
-          bottom: 0; left: 0; right: 0;
-          height: 2px;
-          background: rgba(255,200,60,0.08);
-        }
+        .sprocket.left  { left: 0;  border-right: 1px solid rgba(255,255,255,0.05); }
+        .sprocket.right { right: 0; border-left:  1px solid rgba(255,255,255,0.05); }
+
+        /* Film fades */
         .film-fade {
           position: absolute;
           left: 18px; right: 18px;
@@ -207,102 +150,31 @@ export default function Login() {
         .film-fade.top    { top: 0;    background: linear-gradient(to bottom, #101012, transparent); }
         .film-fade.bottom { bottom: 0; background: linear-gradient(to top,   #101012, transparent); }
 
-        /* Studio tag at bottom of left panel */
-        .studio-tag {
-          position: absolute;
-          bottom: 0; left: 0; right: 0;
-          z-index: 10;
-          padding: 18px 14px 20px;
-          background: linear-gradient(to top, rgba(8,8,10,1) 60%, transparent);
-          text-align: center;
-        }
-        .studio-logo-line {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          margin-bottom: 5px;
-        }
-        .logo-bar {
-          width: 20px; height: 2px;
-          background: rgba(255,200,60,0.5);
-          border-radius: 1px;
-        }
-        .logo-text {
-          font-family: 'Syne', sans-serif;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 0.25em;
-          color: rgba(255,255,255,0.7);
-          text-transform: uppercase;
-        }
-        .studio-sub-text {
-          font-family: 'DM Mono', monospace;
-          font-size: 8.5px;
-          letter-spacing: 0.2em;
-          color: rgba(255,200,60,0.5);
-          text-transform: uppercase;
-          display: block;
-          margin-top: 2px;
+        /* Grid background */
+        .grid-bg::before {
+          content: '';
+          position: fixed;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+          background-size: 44px 44px;
+          pointer-events: none;
         }
 
-        /* ════ RIGHT FORM ════ */
-        .right-panel {
-          flex: 1;
-          background: #0e0e10;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          padding: 44px 42px;
-          position: relative;
-          overflow: hidden;
-        }
-        .right-panel::after {
+        /* Scanline */
+        .right-panel-inner::after {
           content: '';
           position: absolute;
           left: 0; right: 0;
           height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(255,200,60,0.05), transparent);
+          background: linear-gradient(90deg, transparent, rgba(56,189,248,0.05), transparent);
           animation: scanline 6s linear infinite;
           pointer-events: none;
           z-index: 0;
         }
 
-        /* Pipeline strip */
-        .pipeline-strip {
-          display: flex;
-          align-items: center;
-          margin-bottom: 32px;
-          position: relative;
-          z-index: 1;
-        }
-        .pipe-node {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 5px;
-        }
-        .pipe-dot {
-          width: 6px; height: 6px;
-          border-radius: 50%;
-          background: #252528;
-          border: 1px solid rgba(255,255,255,0.1);
-          transition: all 0.3s;
-        }
-        .pipe-dot.active {
-          background: #ffc83d;
-          border-color: rgba(255,200,60,0.4);
-          animation: nodePulse 2s ease infinite;
-        }
-        .pipe-lbl {
-          font-family: 'DM Mono', monospace;
-          font-size: 7px;
-          letter-spacing: 0.1em;
-          color: rgba(255,255,255,0.18);
-          text-transform: uppercase;
-          white-space: nowrap;
-        }
-        .pipe-lbl.active { color: rgba(255,200,60,0.65); }
+        /* Pipeline connector */
         .pipe-conn {
           flex: 1;
           height: 1px;
@@ -316,58 +188,26 @@ export default function Login() {
           position: absolute;
           top: 0; bottom: 0;
           width: 24px;
-          background: linear-gradient(90deg, transparent, rgba(255,200,60,0.45), transparent);
+          background: linear-gradient(90deg, transparent, rgba(56,189,248,0.45), transparent);
           animation: dotRun 2.8s ease-in-out infinite;
         }
 
-        /* Header */
-        .form-title {
-          font-family: 'Syne', sans-serif;
-          font-size: 30px;
-          font-weight: 800;
-          color: #fff;
-          letter-spacing: -0.01em;
-          margin-bottom: 5px;
-          position: relative; z-index: 1;
+        /* Pipe dot pulse */
+        .pipe-dot-active {
+          width: 6px; height: 6px;
+          border-radius: 50%;
+          background: #38bdf8;
+          border: 1px solid rgba(56,189,248,0.4);
+          animation: nodePulse 2s ease infinite;
         }
-        .form-subtitle {
-          font-size: 12px;
-          color: rgba(255,255,255,0.28);
-          letter-spacing: 0.04em;
-          font-weight: 300;
-          margin-bottom: 24px;
-          position: relative; z-index: 1;
-        }
-        .divider {
-          height: 1px;
-          background: linear-gradient(90deg, rgba(255,200,60,0.25), rgba(255,200,60,0.04), transparent);
-          margin-bottom: 24px;
-          position: relative; z-index: 1;
+        .pipe-dot-inactive {
+          width: 6px; height: 6px;
+          border-radius: 50%;
+          background: #252528;
+          border: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* Fields */
-        .field-group { margin-bottom: 15px; position: relative; z-index: 1; }
-        .field-label {
-          display: block;
-          font-family: 'DM Mono', monospace;
-          font-size: 8.5px;
-          letter-spacing: 0.2em;
-          color: rgba(255,255,255,0.28);
-          text-transform: uppercase;
-          margin-bottom: 6px;
-          transition: color 0.2s;
-        }
-        .field-label.focused { color: rgba(255,200,60,0.55); }
-        .input-wrap { position: relative; }
-        .input-icon {
-          position: absolute;
-          left: 13px; top: 50%;
-          transform: translateY(-50%);
-          opacity: 0.25;
-          pointer-events: none;
-          transition: opacity 0.2s;
-        }
-        .input-icon.focused { opacity: 0.6; }
+        /* Input focus */
         .field-input {
           width: 100%;
           padding: 11px 13px 11px 38px;
@@ -384,23 +224,8 @@ export default function Login() {
         }
         .field-input::placeholder { color: rgba(255,255,255,0.13); font-size: 13px; }
         .field-input:focus {
-          border-color: rgba(255,200,60,0.3);
-          background: rgba(255,200,60,0.015);
-        }
-
-        /* Error */
-        .error-box {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: rgba(255,70,70,0.05);
-          border: 1px solid rgba(255,80,80,0.18);
-          border-radius: 3px;
-          padding: 9px 12px;
-          margin-bottom: 14px;
-          color: rgba(255,120,110,0.85);
-          font-size: 12px;
-          position: relative; z-index: 1;
+          border-color: rgba(56,189,248,0.35);
+          background: rgba(56,189,248,0.015);
         }
 
         /* Button */
@@ -410,8 +235,8 @@ export default function Login() {
           margin-top: 10px;
           border: none;
           border-radius: 3px;
-          background: #ffc83d;
-          color: #0a0a0c;
+          background: #38bdf8;
+          color: #040c14;
           font-family: 'Syne', sans-serif;
           font-size: 12.5px;
           font-weight: 800;
@@ -426,66 +251,57 @@ export default function Login() {
           gap: 8px;
         }
         .submit-btn:hover:not(:disabled) {
-          background: #ffd35a;
-          box-shadow: 0 4px 28px rgba(255,200,60,0.22);
+          background: #7dd3fc;
+          box-shadow: 0 4px 28px rgba(56,189,248,0.25);
           transform: translateY(-1px);
         }
         .submit-btn:active:not(:disabled) { transform: translateY(0); }
         .submit-btn:disabled {
-          background: rgba(255,200,60,0.12);
-          color: rgba(255,200,60,0.25);
+          background: rgba(56,189,248,0.12);
+          color: rgba(56,189,248,0.25);
           cursor: not-allowed;
-        }
-        .btn-dot {
-          width: 5px; height: 5px;
-          border-radius: 50%;
-          background: #0a0a0c;
-          opacity: 0.4;
-        }
-        .btn-arrow {
-          font-size: 15px;
-          opacity: 0.6;
-        }
-
-        /* Timecode footer */
-        .timecode {
-          position: absolute;
-          bottom: 18px; right: 22px;
-          font-family: 'DM Mono', monospace;
-          font-size: 9px;
-          color: rgba(255,255,255,0.1);
-          letter-spacing: 0.1em;
-          z-index: 1;
         }
       `}</style>
 
-      <div className="login-root">
-        <div className="card">
+      {/* Root */}
+      <div className="login-root grid-bg min-h-screen flex items-center justify-center bg-[#0c0c0e] relative overflow-hidden">
+
+        {/* Card */}
+        <div className="card-anim flex w-[780px] min-h-[480px] rounded-[4px] overflow-hidden border border-white/[0.07] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_40px_120px_rgba(0,0,0,0.95),0_0_60px_rgba(56,189,248,0.03)]">
 
           {/* ─── LEFT: FILMSTRIP ─── */}
-          <div className="left-panel">
+          <div className="relative w-[200px] flex-shrink-0 overflow-hidden bg-[#101012] border-r border-white/[0.06] flex flex-col">
+            {/* Sprockets */}
             <div className="sprocket left">
-              {[...Array(32)].map((_, i) => <div key={i} className="sprocket-hole" />)}
+              {[...Array(32)].map((_, i) => (
+                <div key={i} className="w-2 h-2 rounded-[1.5px] bg-[#1e1e20] border border-white/[0.06] flex-shrink-0" />
+              ))}
             </div>
             <div className="sprocket right">
-              {[...Array(32)].map((_, i) => <div key={i} className="sprocket-hole" />)}
+              {[...Array(32)].map((_, i) => (
+                <div key={i} className="w-2 h-2 rounded-[1.5px] bg-[#1e1e20] border border-white/[0.06] flex-shrink-0" />
+              ))}
             </div>
 
+            {/* Film frames */}
             <div className="film-track">
               {[...Array(2)].map((_, rep) =>
                 [
-                  { icon: <Film/>, num: "001", delay: "0s" },
-                  { icon: <Lightbulb/>, num: "002", delay: "0.3s" },
-                  { icon: <Camera/>, num: "003", delay: "0.6s" },
-                  { icon: <Settings/>,  num: "004", delay: "0.9s" },
-                  { icon: <Monitor/>, num: "005", delay: "1.2s" },
-                  { icon: <Sparkles/>,  num: "006", delay: "1.5s" },
-                  { icon: <Theater/>, num: "007", delay: "1.8s" },
+                  { icon: <Film size={24} />, num: "001", delay: "0s" },
+                  { icon: <Lightbulb size={24} />, num: "002", delay: "0.3s" },
+                  { icon: <Camera size={24} />, num: "003", delay: "0.6s" },
+                  { icon: <Settings size={24} />, num: "004", delay: "0.9s" },
+                  { icon: <Monitor size={24} />, num: "005", delay: "1.2s" },
+                  { icon: <Sparkles size={24} />, num: "006", delay: "1.5s" },
+                  { icon: <Theater size={24} />, num: "007", delay: "1.8s" },
                 ].map((f, i) => (
                   <div key={`${rep}-${i}`} className="film-frame" style={{ animationDelay: f.delay }}>
-                    <span className="film-frame-icon">{f.icon}</span>
-                    <span className="film-frame-num">{f.num}</span>
-                    <div className="film-frame-bar" />
+                    <span className="opacity-30 text-white">{f.icon}</span>
+                    <span className="absolute bottom-[5px] right-[6px] font-mono text-[8px] text-sky-400/40 tracking-widest"
+                      style={{ fontFamily: "'DM Mono', monospace" }}>
+                      {f.num}
+                    </span>
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-sky-400/10" />
                   </div>
                 ))
               )}
@@ -494,31 +310,38 @@ export default function Login() {
             <div className="film-fade top" />
             <div className="film-fade bottom" />
 
-            <div className="studio-tag">
-              <div className="studio-logo-line">
-                <div className="logo-bar" />
-                <span className="logo-text">Pipeline</span>
-                <div className="logo-bar" />
+            {/* Studio tag */}
+            <div className="absolute bottom-0 left-0 right-0 z-10 px-[14px] pt-[18px] pb-[20px] text-center"
+              style={{ background: "linear-gradient(to top, rgba(8,8,10,1) 60%, transparent)" }}>
+              <div className="flex items-center justify-center gap-[6px] mb-[5px]">
+                <div className="w-5 h-[2px] rounded-[1px] bg-sky-400/50" />
+                <span className="text-[11px] font-extrabold tracking-[0.25em] text-white/70 uppercase"
+                  style={{ fontFamily: "'Syne', sans-serif" }}>Pipeline</span>
+                <div className="w-5 h-[2px] rounded-[1px] bg-sky-400/50" />
               </div>
-              <div className="studio-logo-line" style={{ marginBottom: 0 }}>
-                <div className="logo-bar" style={{ background: "rgba(255,200,60,0.25)" }} />
-                <span className="logo-text" style={{ color: "rgba(255,200,60,0.75)" }}>Animation</span>
-                <div className="logo-bar" style={{ background: "rgba(255,200,60,0.25)" }} />
+              <div className="flex items-center justify-center gap-[6px]">
+                <div className="w-5 h-[2px] rounded-[1px] bg-sky-400/25" />
+                <span className="text-[11px] font-extrabold tracking-[0.25em] text-sky-400/75 uppercase"
+                  style={{ fontFamily: "'Syne', sans-serif" }}>Animation</span>
+                <div className="w-5 h-[2px] rounded-[1px] bg-sky-400/25" />
               </div>
-              <span className="studio-sub-text">Thailand</span>
+              <span className="block mt-[2px] text-[8.5px] tracking-[0.2em] text-sky-400/50 uppercase"
+                style={{ fontFamily: "'DM Mono', monospace" }}>Thailand</span>
             </div>
           </div>
 
           {/* ─── RIGHT: FORM ─── */}
-          <div className="right-panel">
+          <div className="right-panel-inner flex-1 bg-[#0e0e10] flex flex-col justify-center px-[42px] py-[44px] relative overflow-hidden">
 
             {/* Pipeline progress strip */}
-            <div className="pipeline-strip">
+            <div className="flex items-center mb-8 relative z-10">
               {pipelineSteps.map((step, i) => (
-                <div key={step} style={{ display: "flex", alignItems: "center", flex: i < pipelineSteps.length - 1 ? 1 : "none" }}>
-                  <div className="pipe-node">
-                    <div className={`pipe-dot ${i === 0 ? "active" : ""}`} />
-                    <span className={`pipe-lbl ${i === 0 ? "active" : ""}`}>{step}</span>
+                <div key={step} className="flex items-center" style={{ flex: i < pipelineSteps.length - 1 ? 1 : "none" }}>
+                  <div className="flex flex-col items-center gap-[5px]">
+                    <div className={i === 0 ? "pipe-dot-active" : "pipe-dot-inactive"} />
+                    <span className={`text-[7px] tracking-[0.1em] uppercase whitespace-nowrap ${
+                      i === 0 ? "text-sky-400/65" : "text-white/[0.18]"
+                    }`} style={{ fontFamily: "'DM Mono', monospace" }}>{step}</span>
                   </div>
                   {i < pipelineSteps.length - 1 && <div className="pipe-conn" />}
                 </div>
@@ -526,12 +349,18 @@ export default function Login() {
             </div>
 
             {/* Header */}
-            <h1>Sign In</h1>
-            <p className="form-subtitle">Access your production pipeline</p>
-            <div className="divider" />
+            <h1 className="text-[30px] font-extrabold text-white tracking-[-0.01em] mb-[5px] relative z-10"
+              >Sign In</h1>
+            <p className="text-[12px] text-white/[0.28] tracking-[0.04em] font-light mb-6 relative z-10"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}>Access your production pipeline</p>
 
+            {/* Divider */}
+            <div className="h-px mb-6 relative z-10"
+              style={{ background: "linear-gradient(90deg, rgba(56,189,248,0.25), rgba(56,189,248,0.04), transparent)" }} />
+
+            {/* Error */}
             {error && (
-              <div className="error-box">
+              <div className="flex items-center gap-2 bg-red-500/5 border border-red-500/20 rounded-[3px] px-3 py-[9px] mb-[14px] text-red-400/85 text-[12px] relative z-10">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="12" y1="8" x2="12" y2="13"/>
@@ -542,14 +371,18 @@ export default function Login() {
             )}
 
             {/* Identifier */}
-            <div className="field-group">
-              <label className={`field-label ${focusedField === "id" ? "focused" : ""}`}>
+            <div className="mb-[15px] relative z-10">
+              <label className={`block text-[8.5px] tracking-[0.2em] uppercase mb-[6px] transition-colors duration-200 ${
+                focusedField === "id" ? "text-sky-400/55" : "text-white/[0.28]"
+              }`} style={{ fontFamily: "'DM Mono', monospace" }}>
                 Identifier
               </label>
-              <div className="input-wrap">
-                <svg className={`input-icon ${focusedField === "id" ? "focused" : ""}`}
+              <div className="relative">
+                <svg className={`absolute left-[13px] top-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 ${
+                  focusedField === "id" ? "opacity-60" : "opacity-25"
+                }`}
                   width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke="rgba(255,200,60,1)" strokeWidth="1.8">
+                  stroke="rgb(56,189,248)" strokeWidth="1.8">
                   <circle cx="12" cy="8" r="4"/>
                   <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
                 </svg>
@@ -567,14 +400,18 @@ export default function Login() {
             </div>
 
             {/* Password */}
-            <div className="field-group">
-              <label className={`field-label ${focusedField === "pw" ? "focused" : ""}`}>
+            <div className="mb-[15px] relative z-10">
+              <label className={`block text-[8.5px] tracking-[0.2em] uppercase mb-[6px] transition-colors duration-200 ${
+                focusedField === "pw" ? "text-sky-400/55" : "text-white/[0.28]"
+              }`} style={{ fontFamily: "'DM Mono', monospace" }}>
                 Access Code
               </label>
-              <div className="input-wrap">
-                <svg className={`input-icon ${focusedField === "pw" ? "focused" : ""}`}
+              <div className="relative">
+                <svg className={`absolute left-[13px] top-1/2 -translate-y-1/2 pointer-events-none transition-opacity duration-200 ${
+                  focusedField === "pw" ? "opacity-60" : "opacity-25"
+                }`}
                   width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke="rgba(255,200,60,1)" strokeWidth="1.8">
+                  stroke="rgb(56,189,248)" strokeWidth="1.8">
                   <rect x="3" y="11" width="18" height="11" rx="2"/>
                   <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </svg>
@@ -600,21 +437,24 @@ export default function Login() {
             >
               {loading ? (
                 <>
-                  <div className="btn-dot" />
-                  <div className="btn-dot" />
-                  <div className="btn-dot" />
+                  <div className="w-[5px] h-[5px] rounded-full bg-[#040c14] opacity-40" />
+                  <div className="w-[5px] h-[5px] rounded-full bg-[#040c14] opacity-40" />
+                  <div className="w-[5px] h-[5px] rounded-full bg-[#040c14] opacity-40" />
                   Rendering...
                 </>
               ) : (
                 <>
                   Enter
-                  <span className="btn-arrow">→</span>
+                  <span className="text-[15px] opacity-60">→</span>
                 </>
               )}
             </button>
 
             {/* Timecode */}
-            <div className="timecode">F001 · 24fps · PAT</div>
+            <div className="absolute bottom-[18px] right-[22px] text-[9px] text-white/10 tracking-[0.1em] z-10"
+              style={{ fontFamily: "'DM Mono', monospace" }}>
+              F001 · 24fps · PAT
+            </div>
           </div>
 
         </div>

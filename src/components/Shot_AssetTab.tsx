@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Image, Pencil, Check, Trash2, LoaderCircle } from 'lucide-react';
+import { Film, Image, Pencil, Check, Trash2, LoaderCircle, Eye } from 'lucide-react';
 import ENDPOINTS from '../config';
 import axios from 'axios';
 import PixelLoadingSkeleton from './PixelLoadingSkeleton';
@@ -54,7 +54,7 @@ const getStatus = (status: string) =>
 
 
 const Shot_AssetTab: React.FC<ShotAssetTabProps> = ({ shots: initialShots, loading, onShotUpdate }) => {
-       const navigate = useNavigate();
+    const navigate = useNavigate();
     const [shots, setShots] = useState<AssetShot[]>(initialShots);
     const [editingShotId, setEditingShotId] = useState<number | null>(null);
     const [editingShotName, setEditingShotName] = useState('');
@@ -63,6 +63,7 @@ const Shot_AssetTab: React.FC<ShotAssetTabProps> = ({ shots: initialShots, loadi
     const [showStatusMenu, setShowStatusMenu] = useState<number | null>(null);
     const [statusMenuPosition, setStatusMenuPosition] = useState<'top' | 'bottom'>('bottom');
     const [updating, setUpdating] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
     // ⭐ State เก็บ sequence ของแต่ละ shot (key = shot_id)
     const [shotSequenceMap, setShotSequenceMap] = useState<Record<number, ShotSequenceInfo>>({});
@@ -269,7 +270,7 @@ const Shot_AssetTab: React.FC<ShotAssetTabProps> = ({ shots: initialShots, loadi
                                             );
 
                                             if (isImage) return (
-                                                <div className="relative w-20 h-16 rounded-lg overflow-hidden ring-1 ring-gray-700 group-hover:ring-blue-500/50 transition-all">
+                                                <div className="relative w-20 h-16 rounded-lg overflow-hidden ring-1 ring-gray-700 group-hover:ring-blue-500/50 transition-all group/img">
                                                     <div
                                                         className="absolute inset-0 bg-cover bg-center blur-xl scale-110 opacity-50"
                                                         style={{ backgroundImage: `url(${ENDPOINTS.image_url}${url})` }}
@@ -279,6 +280,16 @@ const Shot_AssetTab: React.FC<ShotAssetTabProps> = ({ shots: initialShots, loadi
                                                         alt={shot.shot_name}
                                                         className="relative w-full h-full object-contain"
                                                     />
+                                                    {/* Eye overlay */}
+                                                    <div
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setPreviewUrl(`${ENDPOINTS.image_url}${url}`);
+                                                        }}
+                                                        className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer"
+                                                    >
+                                                        <Eye className="w-5 h-5 text-white" />
+                                                    </div>
                                                 </div>
                                             );
 
@@ -317,14 +328,14 @@ const Shot_AssetTab: React.FC<ShotAssetTabProps> = ({ shots: initialShots, loadi
                                                     <span
                                                         className="text-blue-400 font-medium truncate max-w-[150px] hover:text-blue-300 underline decoration-blue-400/30 hover:decoration-blue-300 underline-offset-2 transition-colors cursor-pointer"
                                                         title={shot.shot_name}
-                                                         onClick={(e) => {
+                                                        onClick={(e) => {
                                                             e.stopPropagation();
                                                             localStorage.setItem("selectedShot", JSON.stringify({ id: shot.shot_id }));
                                                             navigate('/Project_Shot/Others_Shot');
                                                         }}
                                                     >
                                                         {shot.shot_name}
-                                                        
+
                                                     </span>
                                                     <div
                                                         onClick={e => {
@@ -527,6 +538,20 @@ const Shot_AssetTab: React.FC<ShotAssetTabProps> = ({ shots: initialShots, loadi
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+            {previewUrl && (
+                <div
+                    className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
+                    onClick={() => setPreviewUrl(null)}
+                >
+
+                    <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    />
                 </div>
             )}
         </div>

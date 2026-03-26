@@ -105,7 +105,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
     onUpdateVersion,
     onAddVersionSuccess,
     onDeleteVersionSuccess,
-     showVersionsTab = true,
+    showVersionsTab = true,
 }) => {
     const navigate = useNavigate();
     // ✅ FIX 1: hooks ทั้งหมดต้องอยู่บนสุด ก่อน early return ทุกกรณี
@@ -131,7 +131,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
 
 
     const [showAddNoteModal, setShowAddNoteModal] = React.useState(false);
-    const [addNoteForm, setAddNoteForm] = React.useState({ subject: '', body: '', type: 'Internal' as 'Client' | 'Internal' });
+    const [addNoteForm, setAddNoteForm] = React.useState({ subject: '', body: '', type: 'Client' as 'Client' | 'Internal' });
     const [isCreatingNote, setIsCreatingNote] = React.useState(false);
 
     const [noteAssignees, setNoteAssignees] = React.useState<{ id: number; name: string }[]>([]);
@@ -146,28 +146,28 @@ const RightPanel: React.FC<RightPanelProps> = ({
     const [noteFiles, setNoteFiles] = React.useState<File[]>([]);
 
     const [editingNote, setEditingNote] = React.useState<{
-    id: number;
-    field: 'subject' | 'body';
-} | null>(null);
-const [editingNoteValue, setEditingNoteValue] = React.useState('');
+        id: number;
+        field: 'subject' | 'body';
+    } | null>(null);
+    const [editingNoteValue, setEditingNoteValue] = React.useState('');
 
-const saveNoteEdit = async () => {
-    if (!editingNote) return;
-    const { id, field } = editingNote;
-    const value = editingNoteValue.trim();
-    // optimistic update
-    setTaskNotes(prev => prev.map(n => n.id === id ? { ...n, [field]: value } : n));
-    setEditingNote(null);
-    try {
-        await fetch(`${ENDPOINTS.EDIT_NOTE}/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ field, value }),
-        });
-    } catch (err) {
-        console.error('saveNoteEdit failed:', err);
-    }
-};
+    const saveNoteEdit = async () => {
+        if (!editingNote) return;
+        const { id, field } = editingNote;
+        const value = editingNoteValue.trim();
+        // optimistic update
+        setTaskNotes(prev => prev.map(n => n.id === id ? { ...n, [field]: value } : n));
+        setEditingNote(null);
+        try {
+            await fetch(`${ENDPOINTS.EDIT_NOTE}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ field, value }),
+            });
+        } catch (err) {
+            console.error('saveNoteEdit failed:', err);
+        }
+    };
 
     const projectId = projectData?.projectId;
 
@@ -318,40 +318,40 @@ const saveNoteEdit = async () => {
 
 
     // ✅ handleDeleteVersion - เรียก callback ตรงๆ เช่นกัน
-const handleDeleteVersion = async (versionId: number) => {
-    setIsDeletingVersion(true);
-    try {
-        const entityType = selectedTask?.entity_type;
-        const entityId = selectedTask?.entity_id;
+    const handleDeleteVersion = async (versionId: number) => {
+        setIsDeletingVersion(true);
+        try {
+            const entityType = selectedTask?.entity_type;
+            const entityId = selectedTask?.entity_id;
 
-        let newThumbnail: string | null = null;
+            let newThumbnail: string | null = null;
 
-        if (entityType === 'asset' && entityId) {
-            const res = await axios.delete(
-                `${ENDPOINTS.DELETE_ASSET_VERSION}/${versionId}`,
-                { data: { entityId } }
-            );
-            newThumbnail = res.data?.newThumbnail ?? null;
-        } else if (entityType === 'shot' && entityId) {
-            const res = await axios.delete(
-                `${ENDPOINTS.DELETE_SHOT_VERSION}/${versionId}`,
-                { data: { entityId } }
-            );
-            newThumbnail = res.data?.newThumbnail ?? null;
-        } else {
-            await axios.delete(ENDPOINTS.DELETE_VERSION, {
-                data: { versionId },
-            });
+            if (entityType === 'asset' && entityId) {
+                const res = await axios.delete(
+                    `${ENDPOINTS.DELETE_ASSET_VERSION}/${versionId}`,
+                    { data: { entityId } }
+                );
+                newThumbnail = res.data?.newThumbnail ?? null;
+            } else if (entityType === 'shot' && entityId) {
+                const res = await axios.delete(
+                    `${ENDPOINTS.DELETE_SHOT_VERSION}/${versionId}`,
+                    { data: { entityId } }
+                );
+                newThumbnail = res.data?.newThumbnail ?? null;
+            } else {
+                await axios.delete(ENDPOINTS.DELETE_VERSION, {
+                    data: { versionId },
+                });
+            }
+
+            setDeleteConfirm(null);
+            onDeleteVersionSuccess?.(newThumbnail);
+        } catch (err) {
+            alert("ไม่สามารถลบ Version ได้");
+        } finally {
+            setIsDeletingVersion(false);
         }
-
-        setDeleteConfirm(null);
-        onDeleteVersionSuccess?.(newThumbnail);
-    } catch (err) {
-        alert("ไม่สามารถลบ Version ได้");
-    } finally {
-        setIsDeletingVersion(false);
-    }
-};
+    };
     // ✅ handleAddVersion - เรียก callback ตรงๆ ไม่ต้อง await refreshTaskVersions
     const handleAddVersion = async () => {
         if (!selectedTask || !addVersionForm.version_name.trim()) return;
@@ -544,7 +544,11 @@ const handleDeleteVersion = async (versionId: number) => {
                 if (selectedTask.entity_type === 'shot') {
                     formData.append('shotId', selectedTask.entity_id.toString());
                     uploadEndpoint = ENDPOINTS.UPLOAD_SHOT;
+                } else if (selectedTask.entity_type === 'sequence') {
+                    formData.append('sequenceId', selectedTask.entity_id.toString());
+                    uploadEndpoint = ENDPOINTS.UPLOAD_SEQUENCE;
                 } else {
+                    // asset
                     formData.append('assetId', selectedTask.entity_id.toString());
                     uploadEndpoint = ENDPOINTS.UPLOAD_ASSET;
                 }
@@ -556,7 +560,12 @@ const handleDeleteVersion = async (versionId: number) => {
             }
 
             // ส่วนที่เหลือเหมือนเดิม แค่เพิ่ม fileUrl
-            await fetch(ENDPOINTS.CREATE_SHOT_NOTE, {
+            const createNoteEndpoint =
+                selectedTask.entity_type === 'shot' ? ENDPOINTS.CREATE_SHOT_NOTE :
+                    selectedTask.entity_type === 'sequence' ? ENDPOINTS.CREATE_SEQUENCE_NOTE :
+                        ENDPOINTS.CREATE_ASSET_NOTE;
+
+            await fetch(createNoteEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -575,7 +584,7 @@ const handleDeleteVersion = async (versionId: number) => {
             });
 
             setShowAddNoteModal(false);
-            setAddNoteForm({ subject: '', body: '', type: 'Internal' });
+            setAddNoteForm({ subject: '', body: '', type: 'Client' });
             setNoteAssignees([]);
             setNoteAssigneeQuery('');
             setNoteFiles([]); // ✅ reset files
@@ -674,37 +683,37 @@ const handleDeleteVersion = async (versionId: number) => {
                         </div>
 
                         {/* Tabs */}
-<div className="flex border-t border-slate-700/40">
-    <button
-        onClick={() => onTabChange('notes')}
-        className={`flex items-center gap-2.5 px-7 py-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === 'notes'
-            ? 'text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg'
-            : 'text-slate-400 hover:text-white hover:bg-white/5 bg-gradient-to-r from-slate-800 to-slate-700'
-            }`}
-    >
-        <Edit3 className="w-4 h-4" />
-        <span>Notes</span>
-        {activeTab === 'notes' && (
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 shadow-lg shadow-blue-500/50"></div>
-        )}
-    </button>
+                        <div className="flex border-t border-slate-700/40">
+                            <button
+                                onClick={() => onTabChange('notes')}
+                                className={`flex items-center gap-2.5 px-7 py-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === 'notes'
+                                    ? 'text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg'
+                                    : 'text-slate-400 hover:text-white hover:bg-white/5 bg-gradient-to-r from-slate-800 to-slate-700'
+                                    }`}
+                            >
+                                <Edit3 className="w-4 h-4" />
+                                <span>Notes</span>
+                                {activeTab === 'notes' && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 shadow-lg shadow-blue-500/50"></div>
+                                )}
+                            </button>
 
-    {showVersionsTab && (
-        <button
-            onClick={() => onTabChange('versions')}
-            className={`flex items-center gap-2.5 px-7 py-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === 'versions'
-                ? 'text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-white/5 bg-gradient-to-r from-slate-800 to-slate-700'
-                }`}
-        >
-            <Package className="w-4 h-4" />
-            <span>Versions</span>
-            {activeTab === 'versions' && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 shadow-lg shadow-blue-500/50"></div>
-            )}
-        </button>
-    )}
-</div>
+                            {showVersionsTab && (
+                                <button
+                                    onClick={() => onTabChange('versions')}
+                                    className={`flex items-center gap-2.5 px-7 py-4 text-sm font-bold uppercase tracking-wider transition-all relative ${activeTab === 'versions'
+                                        ? 'text-white bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg'
+                                        : 'text-slate-400 hover:text-white hover:bg-white/5 bg-gradient-to-r from-slate-800 to-slate-700'
+                                        }`}
+                                >
+                                    <Package className="w-4 h-4" />
+                                    <span>Versions</span>
+                                    {activeTab === 'versions' && (
+                                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 shadow-lg shadow-blue-500/50"></div>
+                                    )}
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Content Area */}
@@ -781,121 +790,121 @@ const handleDeleteVersion = async (versionId: number) => {
                                                         : 'bg-slate-800/40 border-slate-700/40 opacity-70'
                                                         }`}
                                                 >
-                                                   <div className="flex items-start justify-between gap-2">
-    <div className="flex items-center gap-2 min-w-0 flex-1 group/subject">
-        {isUnread && (
-            <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0 mt-0.5 animate-pulse" />
-        )}
-        {editingNote !== null && editingNote.id === note.id && editingNote.field === 'subject' ? (
-            <input
-                autoFocus
-                type="text"
-                value={editingNoteValue}
-                onChange={e => setEditingNoteValue(e.target.value)}
-                onBlur={saveNoteEdit}
-                onKeyDown={e => {
-                    if (e.key === 'Enter') saveNoteEdit();
-                    if (e.key === 'Escape') setEditingNote(null);
-                }}
-                onClick={e => e.stopPropagation()}
-                className="flex-1 px-2 py-0.5 bg-slate-900 border border-blue-500/60 rounded-lg text-white text-sm font-semibold outline-none ring-1 ring-blue-500/20"
-            />
-        ) : (
-            <>
-                <p className="text-sm font-semibold text-white truncate">{note.subject}</p>
-                <div
-                    onClick={e => {
-                        e.stopPropagation();
-                        setEditingNote({ id: note.id, field: 'subject' });
-                        setEditingNoteValue(note.subject);
-                    }}
-                    className="opacity-0 group-hover/subject:opacity-100 flex-shrink-0 p-1 rounded-lg cursor-pointer transition-all bg-slate-700/60 hover:bg-slate-600/80"
-                    title="แก้ไข Subject"
-                >
-                    <Pencil className="w-3 h-3 text-slate-400 hover:text-blue-400" />
-                </div>
-            </>
-        )}
-    </div>
-    {/* badges เดิมไม่เปลี่ยน */}
-    <div className="flex items-center gap-1.5 flex-shrink-0">
-    {/* Read Status Badge */}
-    <span
-        onClick={e => {
-            e.stopPropagation();
-            const newStatus = isUnread ? 'read' : 'unread';
-            setTaskNotes(prev =>
-                prev.map(n => n.id === note.id ? { ...n, read_status: newStatus } : n)
-            );
-            fetch(`${ENDPOINTS.EDIT_NOTE}/${note.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ field: 'read_status', value: newStatus }),
-            }).catch(console.error);
-        }}
-        className={`
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="flex items-center gap-2 min-w-0 flex-1 group/subject">
+                                                            {isUnread && (
+                                                                <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0 mt-0.5 animate-pulse" />
+                                                            )}
+                                                            {editingNote !== null && editingNote.id === note.id && editingNote.field === 'subject' ? (
+                                                                <input
+                                                                    autoFocus
+                                                                    type="text"
+                                                                    value={editingNoteValue}
+                                                                    onChange={e => setEditingNoteValue(e.target.value)}
+                                                                    onBlur={saveNoteEdit}
+                                                                    onKeyDown={e => {
+                                                                        if (e.key === 'Enter') saveNoteEdit();
+                                                                        if (e.key === 'Escape') setEditingNote(null);
+                                                                    }}
+                                                                    onClick={e => e.stopPropagation()}
+                                                                    className="flex-1 px-2 py-0.5 bg-slate-900 border border-blue-500/60 rounded-lg text-white text-sm font-semibold outline-none ring-1 ring-blue-500/20"
+                                                                />
+                                                            ) : (
+                                                                <>
+                                                                    <p className="text-sm font-semibold text-white truncate">{note.subject}</p>
+                                                                    <div
+                                                                        onClick={e => {
+                                                                            e.stopPropagation();
+                                                                            setEditingNote({ id: note.id, field: 'subject' });
+                                                                            setEditingNoteValue(note.subject);
+                                                                        }}
+                                                                        className="opacity-0 group-hover/subject:opacity-100 flex-shrink-0 p-1 rounded-lg cursor-pointer transition-all bg-slate-700/60 hover:bg-slate-600/80"
+                                                                        title="แก้ไข Subject"
+                                                                    >
+                                                                        <Pencil className="w-3 h-3 text-slate-400 hover:text-blue-400" />
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                        {/* badges เดิมไม่เปลี่ยน */}
+                                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                            {/* Read Status Badge */}
+                                                            <span
+                                                                onClick={e => {
+                                                                    e.stopPropagation();
+                                                                    const newStatus = isUnread ? 'read' : 'unread';
+                                                                    setTaskNotes(prev =>
+                                                                        prev.map(n => n.id === note.id ? { ...n, read_status: newStatus } : n)
+                                                                    );
+                                                                    fetch(`${ENDPOINTS.EDIT_NOTE}/${note.id}`, {
+                                                                        method: 'PUT',
+                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        body: JSON.stringify({ field: 'read_status', value: newStatus }),
+                                                                    }).catch(console.error);
+                                                                }}
+                                                                className={`
             inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
             cursor-pointer transition-all hover:scale-105 active:scale-95
             ${isUnread
-                ? 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25'
-                : 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30 hover:bg-sky-500/25'
-            }
+                                                                        ? 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25'
+                                                                        : 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30 hover:bg-sky-500/25'
+                                                                    }
         `}
-        title="คลิกเพื่อเปลี่ยนสถานะการอ่าน"
-    >
-        <span className={`w-1.5 h-1.5 rounded-full ${isUnread ? 'bg-amber-400' : 'bg-sky-400'}`} />
-        {isUnread ? 'unread' : 'read'}
-    </span>
+                                                                title="คลิกเพื่อเปลี่ยนสถานะการอ่าน"
+                                                            >
+                                                                <span className={`w-1.5 h-1.5 rounded-full ${isUnread ? 'bg-amber-400' : 'bg-sky-400'}`} />
+                                                                {isUnread ? 'unread' : 'read'}
+                                                            </span>
 
-    {/* Visibility Badge */}
-    <span className={`
+                                                            {/* Visibility Badge */}
+                                                            <span className={`
         inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1
         ${note.visibility === 'Client'
-            ? 'bg-violet-500/15 text-violet-300 ring-violet-500/30'
-            : 'bg-blue-500/15 text-blue-300 ring-blue-500/30'
-        }
+                                                                    ? 'bg-violet-500/15 text-violet-300 ring-violet-500/30'
+                                                                    : 'bg-blue-500/15 text-blue-300 ring-blue-500/30'
+                                                                }
     `}>
-        <span className={`w-1.5 h-1.5 rounded-full ${note.visibility === 'Client' ? 'bg-violet-400' : 'bg-blue-400'}`} />
-        {note.visibility}
-    </span>
-</div>
-</div>
+                                                                <span className={`w-1.5 h-1.5 rounded-full ${note.visibility === 'Client' ? 'bg-violet-400' : 'bg-blue-400'}`} />
+                                                                {note.visibility}
+                                                            </span>
+                                                        </div>
+                                                    </div>
 
-{/* Body */}
-<div className="group/body flex items-start gap-1.5">
-   {editingNote !== null && editingNote.id === note.id && editingNote.field === 'body' ? (
-        <textarea
-            autoFocus
-            value={editingNoteValue}
-            onChange={e => setEditingNoteValue(e.target.value)}
-            onBlur={saveNoteEdit}
-            onKeyDown={e => {
-                if (e.key === 'Escape') setEditingNote(null);
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveNoteEdit(); }
-            }}
-            onClick={e => e.stopPropagation()}
-            rows={3}
-            className="flex-1 px-2 py-1.5 bg-slate-900 border border-blue-500/60 rounded-lg text-slate-300 text-xs outline-none ring-1 ring-blue-500/20 resize-none leading-relaxed"
-        />
-    ) : (
-        <>
-            <p className="text-xs text-slate-400 leading-relaxed whitespace-pre-wrap break-words flex-1 min-w-0">
-                {note.body || <span className="italic text-slate-600">—</span>}
-            </p>
-            <div
-                onClick={e => {
-                    e.stopPropagation();
-                    setEditingNote({ id: note.id, field: 'body' });
-                    setEditingNoteValue(note.body || '');
-                }}
-                className="opacity-0 group-hover/body:opacity-100 flex-shrink-0 p-1 rounded-lg cursor-pointer transition-all bg-slate-700/60 hover:bg-slate-600/80"
-                title="แก้ไข Body"
-            >
-                <Pencil className="w-3 h-3 text-slate-400 hover:text-blue-400" />
-            </div>
-        </>
-    )}
-</div>
+                                                    {/* Body */}
+                                                    <div className="group/body flex items-start gap-1.5">
+                                                        {editingNote !== null && editingNote.id === note.id && editingNote.field === 'body' ? (
+                                                            <textarea
+                                                                autoFocus
+                                                                value={editingNoteValue}
+                                                                onChange={e => setEditingNoteValue(e.target.value)}
+                                                                onBlur={saveNoteEdit}
+                                                                onKeyDown={e => {
+                                                                    if (e.key === 'Escape') setEditingNote(null);
+                                                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveNoteEdit(); }
+                                                                }}
+                                                                onClick={e => e.stopPropagation()}
+                                                                rows={3}
+                                                                className="flex-1 px-2 py-1.5 bg-slate-900 border border-blue-500/60 rounded-lg text-slate-300 text-xs outline-none ring-1 ring-blue-500/20 resize-none leading-relaxed"
+                                                            />
+                                                        ) : (
+                                                            <>
+                                                                <p className="text-xs text-slate-400 leading-relaxed whitespace-pre-wrap break-words flex-1 min-w-0">
+                                                                    {note.body || <span className="italic text-slate-600">—</span>}
+                                                                </p>
+                                                                <div
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        setEditingNote({ id: note.id, field: 'body' });
+                                                                        setEditingNoteValue(note.body || '');
+                                                                    }}
+                                                                    className="opacity-0 group-hover/body:opacity-100 flex-shrink-0 p-1 rounded-lg cursor-pointer transition-all bg-slate-700/60 hover:bg-slate-600/80"
+                                                                    title="แก้ไข Body"
+                                                                >
+                                                                    <Pencil className="w-3 h-3 text-slate-400 hover:text-blue-400" />
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                     <div className="flex items-center gap-3 text-xs text-slate-500">
                                                         <span>✍️ {note.author}</span>
                                                         {note.assigned_people?.length > 0 && (
@@ -1669,19 +1678,7 @@ const handleDeleteVersion = async (versionId: number) => {
                                 />
                             </div>
 
-                            {/* Type */}
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">Type <span className="text-red-400">*</span></label>
-                                <select
-                                    value={addNoteForm.type}
-                                    onChange={(e) => setAddNoteForm(f => ({ ...f, type: e.target.value as 'Client' | 'Internal' }))}
-                                    className="w-full h-9 px-3 bg-[#1a1d24] border border-gray-700/50 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 transition-all"
-                                >
-                                    <option value="Internal">Internal</option>
-                                    <option value="Client">Client</option>
-                                </select>
-                            </div>
-
+           
                             {/*  To */}
                             <div className="space-y-1.5">
                                 <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">To</label>

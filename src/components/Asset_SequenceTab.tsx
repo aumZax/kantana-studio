@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
-import { Image, Pencil, Package, Check, Film, Trash2, LoaderCircle } from 'lucide-react';
+import { Image, Pencil, Package, Check, Film, Trash2, LoaderCircle, Eye, X } from 'lucide-react';
 import ENDPOINTS from '../config';
 import axios from 'axios';
 import PixelLoadingSkeleton from './PixelLoadingSkeleton';
@@ -66,7 +66,7 @@ const Asset_SequenceTab: React.FC<Asset_SequenceTabProps> = ({
     const [updating, setUpdating] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const navigate = useNavigate();
-
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [contextMenu, setContextMenu] = useState<{
         visible: boolean;
         x: number;
@@ -277,9 +277,8 @@ const Asset_SequenceTab: React.FC<Asset_SequenceTabProps> = ({
                                                     </div>
                                                 </div>
                                             );
-
                                             if (isImage) return (
-                                                <div className="relative w-20 h-16 rounded-lg overflow-hidden ring-1 ring-gray-700 group-hover:ring-blue-500/50 transition-all">
+                                                <div className="relative w-20 h-16 rounded-lg overflow-hidden ring-1 ring-gray-700 group-hover:ring-blue-500/50 transition-all group/img">
                                                     <div
                                                         className="absolute inset-0 bg-cover bg-center blur-xl scale-110 opacity-50"
                                                         style={{ backgroundImage: `url(${ENDPOINTS.image_url}${url})` }}
@@ -289,6 +288,16 @@ const Asset_SequenceTab: React.FC<Asset_SequenceTabProps> = ({
                                                         alt={asset.asset_name}
                                                         className="relative w-full h-full object-contain"
                                                     />
+                                                    {/* Eye overlay */}
+                                                    <div
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setPreviewUrl(`${ENDPOINTS.image_url}${url}`);
+                                                        }}
+                                                        className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity cursor-pointer"
+                                                    >
+                                                        <Eye className="w-5 h-5 text-white" />
+                                                    </div>
                                                 </div>
                                             );
 
@@ -614,6 +623,21 @@ const Asset_SequenceTab: React.FC<Asset_SequenceTabProps> = ({
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {previewUrl && (
+                <div
+                    className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
+                    onClick={() => setPreviewUrl(null)}
+                >
+
+                    <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    />
                 </div>
             )}
         </div>
