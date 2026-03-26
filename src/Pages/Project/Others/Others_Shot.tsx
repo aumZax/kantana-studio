@@ -743,7 +743,7 @@ export default function Others_Shot() {
                     noteType: 'shot',
                     typeId: shotData.id,
                     noteId: currentNoteId
-                    
+
                 })
             });
 
@@ -912,23 +912,23 @@ export default function Others_Shot() {
             }
 
             const noteData = {
-                projectId:      projectId ?? null,
-                noteType:       'shot',
-                typeId:         shotData?.id ?? null,
-                subject:        subject || '',
-                body:           body || '',
-                fileUrl:        uploadedFileUrls.length > 1
-                                    ? JSON.stringify(uploadedFileUrls)
-                                    : (uploadedFileUrls[0] ?? null),
-                fileIds:         uploadedFileIds,
-                                           
-                author:         currentUser,
-                status:         'opn',
-                visibility:     type ?? null,
-                tasks:          selectedTasks.length > 0 ? selectedTasks : null,
+                projectId: projectId ?? null,
+                noteType: 'shot',
+                typeId: shotData?.id ?? null,
+                subject: subject || '',
+                body: body || '',
+                fileUrl: uploadedFileUrls.length > 1
+                    ? JSON.stringify(uploadedFileUrls)
+                    : (uploadedFileUrls[0] ?? null),
+                fileIds: uploadedFileIds,
+
+                author: currentUser,
+                status: 'opn',
+                visibility: type ?? null,
+                tasks: selectedTasks.length > 0 ? selectedTasks : null,
                 assignedPeople: selectedPeople?.length > 0
-                                    ? selectedPeople.map((person: Person) => person.id)
-                                    : null,
+                    ? selectedPeople.map((person: Person) => person.id)
+                    : null,
             };
 
             const createResponse = await fetch(ENDPOINTS.CREATE_SHOT_NOTE, {
@@ -1269,56 +1269,6 @@ export default function Others_Shot() {
                     />
                 );
 
-            case 'Publishes':
-                return (
-                    <div className="bg-gradient-to-br from-gray-800 to-gray-700 p-6 rounded-xl border border-gray-600/50 shadow-lg">
-                        <div className="space-y-3 text-gray-200">
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl">📤</span>
-                                <div>
-                                    <p className="font-medium">Last publish: v002</p>
-                                    <p className="text-sm text-gray-400 mt-1">Published by John Doe</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                );
-
-            case 'Files':
-                return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="bg-gradient-to-br from-gray-800 to-gray-700 p-4 rounded-xl border border-gray-600/50 hover:border-blue-500/50 transition-all hover:shadow-lg cursor-pointer">
-                            <p className="flex items-center gap-3 text-gray-200">
-                                <span className="text-2xl">📄</span>
-                                <span className="font-medium">storyboard.pdf</span>
-                            </p>
-                        </div>
-                        <div className="bg-gradient-to-br from-gray-800 to-gray-700 p-4 rounded-xl border border-gray-600/50 hover:border-blue-500/50 transition-all hover:shadow-lg cursor-pointer">
-                            <p className="flex items-center gap-3 text-gray-200">
-                                <span className="text-2xl">🖼️</span>
-                                <span className="font-medium">reference.jpg</span>
-                            </p>
-                        </div>
-                    </div>
-                );
-
-            case 'History':
-                return (
-                    <div className="space-y-2">
-                        <div className="flex items-start gap-3 p-3 bg-gray-700/30 rounded-lg border-l-2 border-blue-500/50">
-                            <span className="text-sm text-gray-400">•</span>
-                            <p className="text-sm text-gray-300">Shot created by John</p>
-                        </div>
-                        <div className="flex items-start gap-3 p-3 bg-gray-700/30 rounded-lg border-l-2 border-green-500/50">
-                            <span className="text-sm text-gray-400">•</span>
-                            <p className="text-sm text-gray-300">Status changed to In Progress</p>
-                        </div>
-                        <div className="flex items-start gap-3 p-3 bg-gray-700/30 rounded-lg border-l-2 border-purple-500/50">
-                            <span className="text-sm text-gray-400">•</span>
-                            <p className="text-sm text-gray-300">Version v002 uploaded</p>
-                        </div>
-                    </div>
-                );
 
             default:
                 return null;
@@ -1626,75 +1576,62 @@ export default function Others_Shot() {
                                     )}
                                 </div>
 
-                                {/* Due Date */}
-                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
-                                        <span>📅</span>
-                                        Due Date
-                                    </label>
-                                    <p className="text-white font-semibold px-2 py-1.5 text-sm">{shotData.dueDate}</p>
-                                </div>
+                                <div className="col-span-3 grid grid-cols-2 gap-2">
 
-                                {/* Tags */}
-                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
-                                        <span>🏷️</span>
-                                        Tags
-                                    </label>
-                                    {shotData.tags.length > 0 ? (
-                                        <div className="flex gap-1.5 flex-wrap">
-                                            {shotData.tags.map((tag, index) => (
-                                                <span key={index} className="px-2 py-0.5 bg-blue-600/20 border border-blue-500/30 text-blue-300 text-xs rounded">
-                                                    {tag}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-gray-500 text-xs italic px-2 py-1.5">No tags</p>
-                                    )}
-                                </div>
+                                    {/* Due Date */}
+                                    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                                        <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                            <span>📅</span>
+                                            Due Date
+                                        </label>
+                                        <p className="text-white font-semibold px-2 py-1.5 text-sm">{shotData.dueDate}</p>
+                                    </div>
 
-                                {/* Description - ใช้พื้นที่ที่เหลือ */}
-                                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
-                                    <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
-                                        <span>📝</span>
-                                        Description
-                                    </label>
-                                    {editingField === 'description' ? (
-                                        <textarea
-                                            value={shotData.description}
-                                            autoFocus
-                                            rows={2}
-                                            onChange={(e) => setShotData(prev => ({ ...prev, description: e.target.value }))}
-                                            onBlur={() => {
-                                                updateDescription({ description: shotData.description });
-                                                setEditingField(null);
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter" && !e.shiftKey) {
-                                                    e.preventDefault();
+
+
+                                    {/* Description - ใช้พื้นที่ที่เหลือ */}
+                                    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                                        <label className="text-gray-400 text-xs font-medium block mb-1.5 flex items-center gap-1.5">
+                                            <span>📝</span>
+                                            Description
+                                        </label>
+                                        {editingField === 'description' ? (
+                                            <textarea
+                                                value={shotData.description}
+                                                autoFocus
+                                                rows={2}
+                                                onChange={(e) => setShotData(prev => ({ ...prev, description: e.target.value }))}
+                                                onBlur={() => {
                                                     updateDescription({ description: shotData.description });
                                                     setEditingField(null);
-                                                }
-                                                if (e.key === "Escape") setEditingField(null);
-                                            }}
-                                            className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1.5 text-white text-xs resize-none"
-                                        />
-                                    ) : (
-                                        <p
-                                            className="text-white text-xs cursor-pointer hover:bg-gray-700/50 px-2 py-1.5 rounded transition-colors line-clamp-2"
-                                            onClick={() => setEditingField('description')}
-                                        >
-                                            {shotData.description || <span className="text-gray-500 italic">Click to add...</span>}
-                                        </p>
-                                    )}
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        updateDescription({ description: shotData.description });
+                                                        setEditingField(null);
+                                                    }
+                                                    if (e.key === "Escape") setEditingField(null);
+                                                }}
+                                                className="w-full bg-gray-700 border border-blue-500 rounded px-2 py-1.5 text-white text-xs resize-none"
+                                            />
+                                        ) : (
+                                            <p
+                                                className="text-white text-xs cursor-pointer hover:bg-gray-700/50 px-2 py-1.5 rounded transition-colors line-clamp-2"
+                                                onClick={() => setEditingField('description')}
+                                            >
+                                                {shotData.description || <span className="text-gray-500 italic">Click to add...</span>}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
+
                             </div>
                         </div>
 
                         {/* Tabs - ทำให้เล็กและกระชับ */}
                         <nav className="flex items-center gap-2 border-t border-gray-700/50 pt-4 mt-4 overflow-x-auto pb-1">
-                            {['Shot Info', 'Tasks', 'Notes', 'Versions', 'Assets', 'Publishes', 'Files', 'History'].map((tab) => (
+                            {['Shot Info', 'Tasks', 'Notes', 'Versions', 'Assets'].map((tab) => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
@@ -1981,18 +1918,9 @@ export default function Others_Shot() {
                                     onChange={(e) => setCreateAssetForm(p => ({ ...p, asset_type: e.target.value }))}
                                     className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                                 >
-                                    <option value="Character">Character</option>
-                                    <option value="Environment">Environment</option>
-                                    <option value="Prop">Prop</option>
-                                    <option value="FX">FX</option>
-                                    <option value="Graphic">Graphic</option>
-                                    <option value="Matte Painting">Matte Painting</option>
-                                    <option value="Vehicle">Vehicle</option>
-                                    <option value="Weapon">Weapon</option>
-                                    <option value="Model">Model</option>
-                                    <option value="Theme">Theme</option>
-                                    <option value="Zone">Zone</option>
-                                    <option value="Part">Part</option>
+                                    {['Character', 'Environment', 'Prop', 'FX', 'Graphic', 'Matte Painting', 'Vehicle', 'Weapon', 'Model', 'Theme', 'Zone', 'Part'].map(t => (
+                                        <option key={t} value={t} className="bg-gray-800 text-gray-200">{t}</option>
+                                    ))}
                                 </select>
                             </div>
 

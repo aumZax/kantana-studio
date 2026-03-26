@@ -795,8 +795,8 @@ export default function Home() {
                             canvas.width * 0.78, canvas.height * 0.18, 0,
                             canvas.width * 0.78, canvas.height * 0.18, 320
                         );
-                        n1.addColorStop(0, "rgba(50,90,255,0.13)");
-                        n1.addColorStop(0.5, "rgba(40,70,200,0.06)");
+                        n1.addColorStop(0, "rgba(0,120,255,0.15)");
+n1.addColorStop(0.5, "rgba(0,80,200,0.07)")
                         n1.addColorStop(1, "transparent");
                         ctx.fillStyle = n1;
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -806,8 +806,8 @@ export default function Home() {
                             canvas.width * 0.15, canvas.height * 0.75, 0,
                             canvas.width * 0.15, canvas.height * 0.75, 280
                         );
-                        n2.addColorStop(0, "rgba(140,50,255,0.11)");
-                        n2.addColorStop(0.5, "rgba(100,30,180,0.05)");
+                       n2.addColorStop(0, "rgba(0,200,255,0.10)");
+n2.addColorStop(0.5, "rgba(0,150,220,0.05)");
                         n2.addColorStop(1, "transparent");
                         ctx.fillStyle = n2;
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -817,7 +817,7 @@ export default function Home() {
                             canvas.width * 0.5, canvas.height * 0.5, 0,
                             canvas.width * 0.5, canvas.height * 0.5, 200
                         );
-                        n3.addColorStop(0, "rgba(0,180,220,0.05)");
+                       n3.addColorStop(0, "rgba(30,100,255,0.07)");
                         n3.addColorStop(1, "transparent");
                         ctx.fillStyle = n3;
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -872,16 +872,21 @@ export default function Home() {
             <header
                 className="w-full h-22 px-4 flex items-center justify-between fixed z-[50] backdrop-blur-md"
                 style={{
-                    background: "rgba(3, 4, 15, 0.72)",
-                    borderBottom: "1px solid rgba(255,255,255,0.06)",
-                    boxShadow: "0 1px 30px rgba(0,0,0,0.5)",
+                  background: "rgba(2, 8, 28, 0.85)",
+borderBottom: "1px solid rgba(0,140,255,0.15)",
+boxShadow: "0 1px 30px rgba(0,80,255,0.15)",
                 }}>
                 <div className="flex flex-col">
                     <h2 className="text-3xl font-semibold text-gray-200 flex items-center gap-3">
                         Projects
-                        <span className="text-xs rounded-md bg-gray-800 border border-gray-700 px-2 py-0.5 text-white-400">
-                            shared
-                        </span>
+                        <span className="text-xs rounded-md px-2 py-0.5 font-mono tracking-widest"
+  style={{
+    background: "rgba(0,120,255,0.12)",
+    border: "1px solid rgba(0,140,255,0.3)",
+    color: "#60a5fa"
+  }}>
+  pipeline
+</span>
                     </h2>
 
                     <div className="flex items-center gap-3 mt-2">

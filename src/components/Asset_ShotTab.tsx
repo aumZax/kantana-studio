@@ -3,6 +3,7 @@ import { Image, Pencil, Package, Check, Trash2, LoaderCircle } from 'lucide-reac
 import ENDPOINTS from '../config';
 import axios from 'axios';
 import PixelLoadingSkeleton from './PixelLoadingSkeleton';
+import { useNavigate } from 'react-router-dom';
 
 type StatusType = 'wtg' | 'ip' | 'fin';
 
@@ -61,6 +62,7 @@ const Asset_ShotTab: React.FC<Asset_ShotTabProps> = ({
     const [showStatusMenu, setShowStatusMenu] = useState<number | null>(null);
     const [statusMenuPosition, setStatusMenuPosition] = useState<'top' | 'bottom'>('bottom');
     const [updating, setUpdating] = useState(false);
+    const navigate = useNavigate();
 
     // ⭐ State สำหรับ sequences ของแต่ละ asset (key = asset_id)
     const [assetSequencesMap, setAssetSequencesMap] = useState<Record<number, AssetSequence[]>>({});
@@ -323,6 +325,11 @@ const Asset_ShotTab: React.FC<Asset_ShotTabProps> = ({
                                                     <span
                                                         className="text-blue-400 font-medium truncate max-w-[150px] hover:text-blue-300 underline decoration-blue-400/30 hover:decoration-blue-300 underline-offset-2 transition-colors cursor-pointer"
                                                         title={asset.asset_name}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            localStorage.setItem("selectedAsset", JSON.stringify({ id: asset.asset_id }));
+                                                            navigate('/Project_Assets/Others_Asset');
+                                                        }}
                                                     >
                                                         {asset.asset_name}
                                                     </span>

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Eye, Film, Check, X, ChevronDown, Layers, Pencil } from 'lucide-react';
 import ENDPOINTS from '../config';
 import PixelLoadingSkeleton from './PixelLoadingSkeleton';
+import { useNavigate } from 'react-router-dom';
 
 const versionStatusConfig = {
     wtg: { label: 'wtg', fullLabel: 'Waiting to Start', color: 'bg-gray-600', icon: '-' },
@@ -64,7 +65,7 @@ const VersionTab: React.FC<VersionTabProps> = ({
     onDeleteVersion,
     formatDate,
 }) => {
-
+    const navigate = useNavigate();
     const [previewVersion, setPreviewVersion] = useState<Version | null>(null);
     const [showStatusMenu, setShowStatusMenu] = useState<number | null>(null);
     const [statusMenuPosition, setStatusMenuPosition] = useState<'top' | 'bottom'>('bottom');
@@ -86,6 +87,7 @@ const VersionTab: React.FC<VersionTabProps> = ({
     } | null>(null);
     const [isDeletingVersion, setIsDeletingVersion] = useState(false);
 
+    // หลัง
     const formatDateDefault = (dateStr: string) => {
         if (!dateStr) return '-';
         return new Date(dateStr).toLocaleString('th-TH', {
@@ -155,6 +157,7 @@ const VersionTab: React.FC<VersionTabProps> = ({
         );
     }
     if (!versions.length) {
+
         return (
             <div className="text-center py-12">
                 <div className="relative">
@@ -321,11 +324,12 @@ const VersionTab: React.FC<VersionTabProps> = ({
                     </thead>
 
                     <tbody className="divide-y divide-gray-800/50">
+
                         {versions.map((version, index) => {
                             const statusKey = (version.status || 'wtg') as VersionStatus;
                             const statusInfo = versionStatusConfig[statusKey] ?? versionStatusConfig.wtg;
                             const mock = isMockRow(version.id);
-
+                            console.log("created_at raw:", version.created_at, "→ formatted:", dateFormatter(version.created_at));
                             return (
                                 <tr
                                     key={`ver-${version.id}-${index}`}
@@ -368,9 +372,31 @@ const VersionTab: React.FC<VersionTabProps> = ({
                                                             />
                                                         </>
                                                     )}
+                                                    {/* ใน hover overlay ของ PREVIEW cell */}
                                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-black/50 z-20">
                                                         <div
-                                                            onClick={() => setPreviewVersion(version)}
+                                                            onClick={() => {
+                                                                if (isVideo(version.file_url)) {
+                                                                    localStorage.setItem("selectedVideo", JSON.stringify({
+                                                                        videoUrl: ENDPOINTS.image_url + version.file_url,
+                                                                        shotCode: version.version_name || `Version ${version.version_number}`,
+                                                                        sequence: version.task_name || '',
+                                                                        status: version.status,
+                                                                        description: version.description || '',
+                                                                        dueDate: version.created_at,
+                                                                        shotId: version.entity_id,
+                                                                        versionId: version.id,
+                                                                        versionName: version.version_name || null,
+                                                                        versionStatus: version.status,
+                                                                        versionUploadedBy: version.uploaded_by_name || null,
+                                                                        versionCreatedAt: version.created_at,
+                                                                        versionDescription: version.description || null,
+                                                                    }));
+                                                                    navigate('/Others_Video');
+                                                                } else {
+                                                                    setPreviewVersion(version);
+                                                                }
+                                                            }}
                                                             className="cursor-pointer p-1.5 rounded-lg"
                                                         >
                                                             <div className="w-7 h-7 bg-white/25 backdrop-blur-sm rounded-full flex items-center justify-center">

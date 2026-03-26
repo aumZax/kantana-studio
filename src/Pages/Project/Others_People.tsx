@@ -845,7 +845,7 @@ function CreatePersonModal({
           {/* Permission + Group */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "Permission", key: "permissionGroup", options: ["Artist", "Supervisor", "Admin", "Producer", "Viewer"] },
+              { label: "Permission", key: "permissionGroup", options: ["Artist","Viewer"] },
               { label: "Group", key: "groups", options: ["None", "FX", "Modeling", "Animation", "Lighting", "Compositing", "Rigging", "Layout", "Rendering"] },
             ].map(({ label, key, options }) => (
               <div key={key}>

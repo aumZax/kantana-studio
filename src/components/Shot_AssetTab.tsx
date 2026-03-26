@@ -3,6 +3,7 @@ import { Film, Image, Pencil, Check, Trash2, LoaderCircle } from 'lucide-react';
 import ENDPOINTS from '../config';
 import axios from 'axios';
 import PixelLoadingSkeleton from './PixelLoadingSkeleton';
+import { useNavigate } from 'react-router-dom';
 
 export interface AssetShot {
     id: number;
@@ -53,6 +54,7 @@ const getStatus = (status: string) =>
 
 
 const Shot_AssetTab: React.FC<ShotAssetTabProps> = ({ shots: initialShots, loading, onShotUpdate }) => {
+       const navigate = useNavigate();
     const [shots, setShots] = useState<AssetShot[]>(initialShots);
     const [editingShotId, setEditingShotId] = useState<number | null>(null);
     const [editingShotName, setEditingShotName] = useState('');
@@ -315,8 +317,14 @@ const Shot_AssetTab: React.FC<ShotAssetTabProps> = ({ shots: initialShots, loadi
                                                     <span
                                                         className="text-blue-400 font-medium truncate max-w-[150px] hover:text-blue-300 underline decoration-blue-400/30 hover:decoration-blue-300 underline-offset-2 transition-colors cursor-pointer"
                                                         title={shot.shot_name}
+                                                         onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            localStorage.setItem("selectedShot", JSON.stringify({ id: shot.shot_id }));
+                                                            navigate('/Project_Shot/Others_Shot');
+                                                        }}
                                                     >
                                                         {shot.shot_name}
+                                                        
                                                     </span>
                                                     <div
                                                         onClick={e => {

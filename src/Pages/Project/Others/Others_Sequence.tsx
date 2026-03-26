@@ -2017,18 +2017,9 @@ export default function Others_Sequence() {
                                     onChange={(e) => setCreateAssetForm(p => ({ ...p, asset_type: e.target.value }))}
                                     className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500"
                                 >
-                                    <option value="Character">Character</option>
-                                    <option value="Environment">Environment</option>
-                                    <option value="Prop">Prop</option>
-                                    <option value="FX">FX</option>
-                                    <option value="Graphic">Graphic</option>
-                                    <option value="Matte Painting">Matte Painting</option>
-                                    <option value="Vehicle">Vehicle</option>
-                                    <option value="Weapon">Weapon</option>
-                                    <option value="Model">Model</option>
-                                    <option value="Theme">Theme</option>
-                                    <option value="Zone">Zone</option>
-                                    <option value="Part">Part</option>
+                                    {['Character', 'Environment', 'Prop', 'FX', 'Graphic', 'Matte Painting', 'Vehicle', 'Weapon', 'Model', 'Theme', 'Zone', 'Part'].map(t => (
+                                                <option key={t} value={t} className="bg-gray-800 text-gray-200">{t}</option>
+                                            ))}
                                 </select>
                             </div>
 

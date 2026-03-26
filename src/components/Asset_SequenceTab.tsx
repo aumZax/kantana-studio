@@ -4,6 +4,7 @@ import { Image, Pencil, Package, Check, Film, Trash2, LoaderCircle } from 'lucid
 import ENDPOINTS from '../config';
 import axios from 'axios';
 import PixelLoadingSkeleton from './PixelLoadingSkeleton';
+import { useNavigate } from 'react-router-dom';
 
 type StatusType = 'wtg' | 'ip' | 'fin' | 'hld' | 'pndng' | 'recd' | 'rts' | 'cmpt';
 
@@ -64,6 +65,7 @@ const Asset_SequenceTab: React.FC<Asset_SequenceTabProps> = ({
     const [statusMenuPosition, setStatusMenuPosition] = useState<'top' | 'bottom'>('bottom');
     const [updating, setUpdating] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const navigate = useNavigate();
 
     const [contextMenu, setContextMenu] = useState<{
         visible: boolean;
@@ -323,8 +325,13 @@ const Asset_SequenceTab: React.FC<Asset_SequenceTabProps> = ({
                                             ) : (
                                                 <>
                                                     <span
-                                                        className="text-slate-50 font-medium truncate max-w-[150px] hover:text-blue-300 underline decoration-blue-400/30 hover:decoration-blue-300 underline-offset-2 transition-colors cursor-pointer"
+                                                        className="text-blue-400 font-medium truncate max-w-[150px] hover:text-blue-300 underline decoration-blue-400/30 hover:decoration-blue-300 underline-offset-2 transition-colors cursor-pointer"
                                                         title={asset.asset_name}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            localStorage.setItem("selectedAsset", JSON.stringify({ id: asset.asset_id }));
+                                                            navigate('/Project_Assets/Others_Asset');
+                                                        }}
                                                     >
                                                         {asset.asset_name}
                                                     </span>

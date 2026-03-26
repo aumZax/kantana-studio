@@ -3,6 +3,7 @@ import { Image, Pencil, Film, Check, Box, Trash2, LoaderCircle } from 'lucide-re
 import ENDPOINTS from '../config';
 import axios from 'axios';
 import PixelLoadingSkeleton from './PixelLoadingSkeleton';
+import { useNavigate } from 'react-router-dom';
 
 type StatusType = 'wtg' | 'ip' | 'fin';
 
@@ -57,6 +58,7 @@ const Shot_SequenceTab: React.FC<ShotTabProps> = ({
     loadingShots,
     onShotUpdate
 }) => {
+       const navigate = useNavigate();
     const [shots, setShots] = useState<Shot[]>(initialShots);
     const [editingShotId, setEditingShotId] = useState<number | null>(null);
     const [editingShotName, setEditingShotName] = useState('');
@@ -353,6 +355,11 @@ const Shot_SequenceTab: React.FC<ShotTabProps> = ({
                                                     <span
                                                         className="text-blue-400 hover:text-blue-300 underline decoration-blue-400/30 hover:decoration-blue-300 underline-offset-2 transition-colors font-medium cursor-pointer truncate max-w-[150px]"
                                                         title={shot.shot_name}
+                                                           onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            localStorage.setItem("selectedShot", JSON.stringify({ id: shot.shot_id }));
+                                                            navigate('/Project_Shot/Others_Shot');
+                                                        }}
                                                     >
                                                         {shot.shot_name}
                                                     </span>
