@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
-import { Image, Pencil, Package, Check, Film, Trash2, LoaderCircle, Eye, X } from 'lucide-react';
+import { Image, Pencil, Package, Check, Film, Trash2, LoaderCircle, Eye} from 'lucide-react';
 import ENDPOINTS from '../config';
 import axios from 'axios';
 import PixelLoadingSkeleton from './PixelLoadingSkeleton';
