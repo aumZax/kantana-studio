@@ -1,6 +1,6 @@
 // endpoints.ts
 const BASE_URL = "https://galleries-audit-subject-skirts.trycloudflare.com";
-// const BASE_URL = "http://localhost:3000";s
+// const BASE_URL = "http://localhost:3000";
 
 // maxaaaaaa
 // const BASE_URL = "http://100.84.110.127:3000";

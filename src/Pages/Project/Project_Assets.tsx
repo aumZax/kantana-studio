@@ -493,7 +493,7 @@ useEffect(() => {
             });
 
 //            console.log('Response status:', res.status);
-            const responseData = await res.json();
+            // const responseData = await res.json();
 //            console.log('Response data:', responseData);
 
             if (res.ok) {
@@ -984,7 +984,7 @@ useEffect(() => {
             });
 
 //            console.log('Response status:', res.status);
-            const responseData = await res.json();
+            // const responseData = await res.json();
 //            console.log('Response data:', responseData);
 
             if (res.ok) {
