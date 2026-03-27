@@ -683,7 +683,7 @@ export default function Others_Sequence() {
                 start_date: '',
                 due_date: '',
                 description: '',
-                
+
             });
             setShowCreateSequence_Task(false);
 
@@ -1102,7 +1102,14 @@ export default function Others_Sequence() {
                                                                     const data = await res.json();
                                                                     if (res.ok) {
                                                                         setIsMediaLoading(true);
-                                                                        setSequenceData(prev => ({ ...prev, thumbnail: data.file.fileUrl }));
+                                                                        // ✅ แก้เป็น (ทั้ง 2 จุด)
+                                                                        const newUrl = data?.files?.[0]?.fileUrl ?? data?.file?.fileUrl;
+                                                                        if (newUrl) {
+                                                                            setIsMediaLoading(true);
+                                                                            setSequenceData(prev => ({ ...prev, thumbnail: newUrl }));
+                                                                        } else {
+                                                                            alert("Upload failed: ไม่ได้รับ URL");
+                                                                        }
                                                                     } else {
                                                                         alert("Upload failed: " + data.error);
                                                                     }
@@ -1141,7 +1148,14 @@ export default function Others_Sequence() {
                                                         const data = await res.json();
                                                         if (res.ok) {
                                                             setIsMediaLoading(true);
-                                                            setSequenceData(prev => ({ ...prev, thumbnail: data.file.fileUrl }));
+                                                            // ✅ แก้เป็น (ทั้ง 2 จุด)
+                                                            const newUrl = data?.files?.[0]?.fileUrl ?? data?.file?.fileUrl;
+                                                            if (newUrl) {
+                                                                setIsMediaLoading(true);
+                                                                setSequenceData(prev => ({ ...prev, thumbnail: newUrl }));
+                                                            } else {
+                                                                alert("Upload failed: ไม่ได้รับ URL");
+                                                            }
                                                         }
                                                     } catch (err) {
                                                         console.error("❌ Upload error:", err);
@@ -1297,13 +1311,13 @@ export default function Others_Sequence() {
                                 <button
                                     key={tab}
                                     onClick={() => {
-    setActiveTab(tab);
-    setIsPanelOpen(false);
-    setTimeout(() => {
-        setSelectedTask(null);
-        setSelectedNote(null);
-    }, 300);
-}}
+                                        setActiveTab(tab);
+                                        setIsPanelOpen(false);
+                                        setTimeout(() => {
+                                            setSelectedTask(null);
+                                            setSelectedNote(null);
+                                        }, 300);
+                                    }}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === tab
                                         ? 'text-white shadow-lg bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-700 hover:to-blue-600'
                                         : 'text-gray-300 bg-gradient-to-r from-gray-700 to-gray-700 hover:from-gray-600 hover:to-gray-600'
@@ -1727,7 +1741,7 @@ export default function Others_Sequence() {
                                     />
                                 </div>
 
-                          
+
 
                                 {/* Message */}
                                 <div className="space-y-1.5">
@@ -2025,8 +2039,8 @@ export default function Others_Sequence() {
                                     className="h-9 px-3 bg-white/4 border border-blue-500/30 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-blue-500"
                                 >
                                     {['Character', 'Environment', 'Prop', 'FX', 'Graphic', 'Matte Painting', 'Vehicle', 'Weapon', 'Model', 'Theme', 'Zone', 'Part'].map(t => (
-                                                <option key={t} value={t} className="bg-gray-800 text-gray-200">{t}</option>
-                                            ))}
+                                        <option key={t} value={t} className="bg-gray-800 text-gray-200">{t}</option>
+                                    ))}
                                 </select>
                             </div>
 
