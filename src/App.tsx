@@ -137,16 +137,16 @@ function MainLayout() {
         headers: { "Content-Type": "application/json" },
       });
       const data = await response.json();
-      console.log("🔥 API RAW:", data);
+      // console.log("🔥 API RAW:", data);
       if (Array.isArray(data.projects)) {
         if (data.projects.length > 0) {
-          console.log("📋 First project structure:", data.projects[0]);
-          console.log("🖼️ Images field:", data.projects[0]?.images);
-          console.log("🔑 All keys:", Object.keys(data.projects[0]));
+          // console.log("📋 First project structure:", data.projects[0]);
+          // console.log("🖼️ Images field:", data.projects[0]?.images);
+          // console.log("🔑 All keys:", Object.keys(data.projects[0]));
         }
         setProjects(data.projects);
       } else {
-        console.error("Unexpected format:", data);
+        // console.error("Unexpected format:", data);
         setProjects([]);
       }
     } catch (error) { console.error("Error fetching projects:", error); }
@@ -156,22 +156,23 @@ function MainLayout() {
     const projectId = project.projectId;
     if (!projectId) return;
 
-    console.log("🚀 Starting handleProjectClick for:", project.projectName);
+    // 
+    // console.log("🚀 Starting handleProjectClick for:", project.projectName);
     localStorage.setItem("projectId", JSON.stringify(projectId));
 
     let thumbnailUrl = "";
     if (project.thumbnail) {
       thumbnailUrl = project.thumbnail;
-      console.log("✅ Using thumbnail from API:", thumbnailUrl);
+      // console.log("✅ Using thumbnail from API:", thumbnailUrl);
     } else if (project.images && Array.isArray(project.images) && project.images.length > 0) {
       thumbnailUrl = project.images[0];
-      console.log("✅ Using first image from images array:", thumbnailUrl);
+      // console.log("✅ Using first image from images array:", thumbnailUrl);
     } else if (project.files_project && Array.isArray(project.files_project) && project.files_project.length > 0) {
       thumbnailUrl = project.files_project[0];
-      console.log("✅ Using first file from files_project:", thumbnailUrl);
+      // console.log("✅ Using first file from files_project:", thumbnailUrl);
     } else {
       thumbnailUrl = "";
-      console.warn("⚠️ No images found for project:", project.projectName);
+      // console.warn("⚠️ No images found for project:", project.projectName);
     }
 
     const baseData = {
@@ -187,12 +188,13 @@ function MainLayout() {
       fetchedAt: new Date().toISOString(),
     };
 
-    console.log("📦 Base data prepared:", baseData);
+    // 
+    // console.log("📦 Base data prepared:", baseData);
     localStorage.setItem("projectData", JSON.stringify({ ...baseData, projectInfo: null, projectDetails: null }));
-    console.log("💾 Saved initial data to localStorage");
+    // console.log("💾 Saved initial data to localStorage");
 
     try {
-      console.log("🔄 Fetching project details...");
+      // console.log("🔄 Fetching project details...");
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Request timeout')), 10000)
       );
@@ -209,30 +211,30 @@ function MainLayout() {
         }),
       ]);
       const [projectInfoRes, projectDetailsRes] = await Promise.race([fetchPromise, timeoutPromise]) as Response[];
-      console.log("✅ Got responses");
+      // console.log("✅ Got responses");
       const projectInfo = await projectInfoRes.json();
       const projectDetails = await projectDetailsRes.json();
-      console.log("📊 Project Info:", projectInfo);
-      console.log("📊 Project Details:", projectDetails);
+      // console.log("📊 Project Info:", projectInfo);
+      // console.log("📊 Project Details:", projectDetails);
       if (!project.thumbnail && !thumbnailUrl) {
         if (projectInfo?.thumbnail) {
           baseData.thumbnail = projectInfo.thumbnail;
-          console.log("✅ Updated thumbnail from projectInfo:", projectInfo.thumbnail);
+          // console.log("✅ Updated thumbnail from projectInfo:", projectInfo.thumbnail);
         } else if (projectDetails?.thumbnail) {
           baseData.thumbnail = projectDetails.thumbnail;
-          console.log("✅ Updated thumbnail from projectDetails:", projectDetails.thumbnail);
+          // console.log("✅ Updated thumbnail from projectDetails:", projectDetails.thumbnail);
         }
       }
       localStorage.setItem("projectData", JSON.stringify({ ...baseData, projectInfo, projectDetails }));
-      console.log("✅ Final project data saved to localStorage");
+      // console.log("✅ Final project data saved to localStorage");
     } catch (err) {
-      console.error("❌ Error fetching project data:", err);
+      // console.error("❌ Error fetching project data:", err);
     }
 
     setProjectsOpen(false);
     setHoveredProjectId(null);
-    console.log("🚀 Navigating to", path);
-    navigate(path);
+    // console.log("🚀 Navigating to", path);
+    navigate(path, { state: { projectId, ts: Date.now() } });
   };
 
   const handleRowEnter = (project: Project, e: React.MouseEvent<HTMLDivElement>) => {
@@ -336,7 +338,7 @@ function MainLayout() {
       const data = await response.json();
       if (Array.isArray(data)) setUsers(data);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      // console.error("Error fetching users:", error);
     } finally {
       setUsersLoading(false);
     }

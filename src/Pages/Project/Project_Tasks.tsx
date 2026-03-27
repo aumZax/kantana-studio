@@ -4,7 +4,7 @@ import axios from "axios";
 import ENDPOINTS from "../../config";
 import { Calendar, Check, ChevronRight, ClipboardList, Clock, Pencil, Users, X, UserPlus, Trash2, ChevronDown, Search, ChevronLeft } from 'lucide-react';
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import RightPanel from "../../components/RightPanel";
 import { createPortal } from 'react-dom';
 import PixelLoadingSkeleton from "../../components/PixelLoadingSkeleton";
@@ -131,6 +131,7 @@ export default function Project_Tasks() {
     const PAGE_SIZE_OPTIONS = [25, 50, 75, 100, 200];
     const [page, setPage] = useState(1);
 const [pageSize, setPageSize] = useState(50);
+const location = useLocation();
 
     const navigate = useNavigate();
     const [showCreateMytask, setShowCreateMytask] = useState(false);
@@ -242,7 +243,7 @@ const [pageSize, setPageSize] = useState(50);
     // Fetch entities เมื่อเปิด modal
     useEffect(() => {
         if (showCreateMytask) {
-            console.log('Modal opened!'); // ⭐ Debug
+            // console.log('Modal opened!'); // ⭐ Debug
 
             fetchAvailableEntities();
         }
@@ -265,9 +266,9 @@ const [pageSize, setPageSize] = useState(50);
             // Fetch sequences
             const sequencesRes = await axios.post(`${ENDPOINTS.PROJECT_SEQUENCES}`, { projectId });
 
-            console.log('Assets:', assetsFlat); // ⭐ Debug
-            console.log('Shots:', shotsFlat); // ⭐ Debug
-            console.log('Sequences:', sequencesRes.data); // ⭐ Debug
+            // console.log('Assets:', assetsFlat); // ⭐ Debug
+            // console.log('Shots:', shotsFlat); // ⭐ Debug
+            // console.log('Sequences:', sequencesRes.data); // ⭐ Debug
 
             setAvailableEntities({
                 assets: assetsFlat,
@@ -715,7 +716,7 @@ const [pageSize, setPageSize] = useState(50);
                     `${ENDPOINTS.PROJECT_TASKS_GROUPED}`,
                     { projectId }
                 );
-                console.log("GROUPED TASKS:", res.data);
+                // console.log("GROUPED TASKS:", res.data);
 
                 // ⭐ เพิ่มการเรียงลำดับตรงนี้
                 const sortedGroups = res.data.sort((a: TaskGroup, b: TaskGroup) => {
@@ -749,7 +750,7 @@ const [pageSize, setPageSize] = useState(50);
             }
         };
         fetchTasks();
-    }, []);
+    }, [location.state]);
 
     useEffect(() => {
         localStorage.setItem('task_expanded_groups', JSON.stringify([...expandedGroups]));

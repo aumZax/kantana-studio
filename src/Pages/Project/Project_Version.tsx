@@ -10,7 +10,7 @@ import {
     ChevronLeft
 } from "lucide-react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import PixelLoadingSkeleton from "../../components/PixelLoadingSkeleton";
 import ErrorLoadingState from "../../components/Errorloadingstate";
 // ===================== Types =====================
@@ -172,12 +172,13 @@ export default function Project_Version() {
     const PAGE_SIZE_OPTIONS = [25, 50, 75, 100, 200];
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
+    const location = useLocation();
 
     // -------------------- Fetch --------------------
     useEffect(() => {
         fetchVersions();
         fetchProjectUsers();
-    }, []);
+    }, [location.state]);
     useEffect(() => {
         localStorage.setItem('version_expanded_groups', JSON.stringify([...expandedGroups]));
     }, [expandedGroups]);

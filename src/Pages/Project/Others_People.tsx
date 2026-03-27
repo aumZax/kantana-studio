@@ -84,13 +84,13 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
       const name = d.projectName || d.projectInfo?.project?.projectName || d.projectInfo?.projectName || "My Animation";
       setProjectName(name);
     } catch { setProjectName("My Animation"); }
-  }, []);
+  }, [location.state]);
 
   useEffect(() => {
     fetchPeople();
     getAllUsers();
 
-  }, []);
+  }, [location.state]);
 
 
   useEffect(() => {

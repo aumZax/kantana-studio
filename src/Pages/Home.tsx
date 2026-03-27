@@ -88,7 +88,8 @@ export default function Home() {
             }
             return JSON.parse(authUserString);
         } catch (error) {
-            console.error("Error parsing authUser:", error);
+            // 
+            // console.error("Error parsing authUser:", error);
             return null;
         }
     };
@@ -101,7 +102,8 @@ export default function Home() {
 
         try {
             const projectIds = projects.map(p => p.id).join(',');
-            console.log("🔍 Requesting images for projects:", projectIds);
+            // 
+            // console.log("🔍 Requesting images for projects:", projectIds);
 
             const { data } = await axios.get(ENDPOINTS.GETPROJECTIMAGES, {
                 params: { projectIds }
@@ -131,10 +133,13 @@ export default function Home() {
             // console.log("✅ Project images updated:", Object.keys(imagesByProject).length);
 
         } catch (err) {
-            console.error("❌ Error fetching project images:", err);
+            // 
+            // console.error("❌ Error fetching project images:", err);
             if (axios.isAxiosError(err)) {
-                console.error("Response:", err.response?.data);
-                console.error("Status:", err.response?.status);
+                // 
+                // console.error("Response:", err.response?.data);
+                // 
+                // console.error("Status:", err.response?.status);
             }
         }
     };
@@ -151,7 +156,10 @@ export default function Home() {
                 { created_by: currentUserUid }
             );
 
-            console.log("📦 Raw API response:", data.projects);
+            // 
+
+// 
+            // console.log("📦 Raw API response:", data.projects);
 
             const allProjects: Project[] = data.projects.map(p => {
                 const creatorUid = p.createdBy;
@@ -175,14 +183,20 @@ export default function Home() {
                 };
             });
 
-            console.log("✅ Processed projects:", allProjects.length);
+            // 
+
+// 
+            // console.log("✅ Processed projects:", allProjects.length);
 
             const myProjects = allProjects.filter(p => p.creatorUid === currentUserUid);
             const sharedProjects = allProjects.filter(p =>
                 p.creatorUid !== currentUserUid && p.status === "Active"
             );
 
-            console.log(`📊 My projects: ${myProjects.length}, Shared projects (Active): ${sharedProjects.length}`);
+            // 
+
+// 
+            // console.log(`📊 My projects: ${myProjects.length}, Shared projects (Active): ${sharedProjects.length}`);
 
             const sortedProjects = [...myProjects, ...sharedProjects];
             setProjectData(sortedProjects);
@@ -193,7 +207,8 @@ export default function Home() {
             // }
 
         } catch (err) {
-            console.error("❌ Error fetching projects:", err);
+            // 
+            // console.error("❌ Error fetching projects:", err);
             setProjectData([]);
             setFetchError(true);
         } finally {
@@ -237,7 +252,8 @@ export default function Home() {
         // const viewOnly = ["Viewer"].includes(project?.permissionGroup || "");
 
         if (isSharedProject && !canEdit) {
-            console.log("🔒 No permission to edit image for shared project");
+            // 
+            // console.log("🔒 No permission to edit image for shared project");
             // ✅ ลบ alert ออก เพื่อไม่ให้มีการแจ้งเตือน
             return;
         }
@@ -266,17 +282,22 @@ export default function Home() {
             const data = await res.json();
 
             if (!res.ok) {
-                console.error("❌ Delete failed:", data);
+                // 
+                // console.error("❌ Delete failed:", data);
                 alert(data.message || "Delete project failed");
                 return;
             }
 
-            console.log("✅ Delete success:", data);
+            // 
+
+// 
+            // console.log("✅ Delete success:", data);
             setDeleteConfirm(null);
             setProjectData((prev) => prev.filter((p) => p.id !== projectId));
 
         } catch (error) {
-            console.error("❌ Network error:", error);
+            // 
+            // console.error("❌ Network error:", error);
             alert("Server error");
         } finally {
             setDeleting(false);
@@ -306,7 +327,8 @@ export default function Home() {
         const canEdit = ["Admin", "Producer", "Supervisor", "Owner"].includes(project?.permissionGroup || "");
 
         if (isSharedProject && !canEdit) {
-            console.log("🔒 No permission to upload image for shared project");
+            // 
+            // console.log("🔒 No permission to upload image for shared project");
             alert("You don't have permission to edit this project's image");
             if (fileInputRefs.current[projectId]) {
                 fileInputRefs.current[projectId]!.value = '';
@@ -329,17 +351,23 @@ export default function Home() {
         const currentProject = projectData.find(p => p.id === projectId);
         const oldImageUrl = currentProject?.image;
 
-        console.log("📤 Starting image upload for project:", projectId);
-        console.log("📁 File details:", {
-            name: file.name,
-            type: file.type,
-            size: `${(file.size / 1024).toFixed(2)} KB`
-        });
+        // 
+
+// 
+        // console.log("📤 Starting image upload for project:", projectId);
+        // 
+        // console.log("📁 File details:", {
+            // name: file.name,
+            // type: file.type,
+            // size: `${(file.size / 1024).toFixed(2)} KB`
+        // });
 
         if (oldImageUrl) {
-            console.log("🔄 Replacing old image:", oldImageUrl);
+            // 
+            // console.log("🔄 Replacing old image:", oldImageUrl);
         } else {
-            console.log("🆕 First image upload for this project");
+            // 
+            // console.log("🆕 First image upload for this project");
         }
 
         setUploadingImages(prev => new Set(prev).add(projectId));
@@ -353,11 +381,16 @@ export default function Home() {
 
             if (oldImageUrl) {
                 formData.append('oldImageUrl', oldImageUrl);
-                console.log("📤 Sending oldImageUrl to backend for deletion");
+                // 
+                // console.log("📤 Sending oldImageUrl to backend for deletion");
             }
 
-            console.log("📤 Uploading file to server...");
-            console.log("📍 Endpoint:", ENDPOINTS.UPLOAD);
+            // 
+
+// 
+            // console.log("📤 Uploading file to server...");
+            // 
+            // console.log("📍 Endpoint:", ENDPOINTS.UPLOAD);
 
             const { data } = await axios.post(ENDPOINTS.UPLOAD, formData, {
                 headers: {
@@ -368,12 +401,16 @@ export default function Home() {
                         const percentCompleted = Math.round(
                             (progressEvent.loaded * 100) / progressEvent.total
                         );
-                        console.log(`📊 Upload progress: ${percentCompleted}%`);
+                        // 
+                        // console.log(`📊 Upload progress: ${percentCompleted}%`);
                     }
                 }
             });
 
-            console.log("📦 Server response:", data);
+            // 
+
+// 
+            // console.log("📦 Server response:", data);
 
             const downloadURL = data.file?.fileUrl;
 
@@ -381,10 +418,14 @@ export default function Home() {
                 throw new Error("No download URL returned from server");
             }
 
-            console.log("✅ Image URL received:", downloadURL);
+            // 
+
+// 
+            // console.log("✅ Image URL received:", downloadURL);
 
             if (oldImageUrl) {
-                console.log("✅ Old image successfully replaced and deleted from server");
+                // 
+                // console.log("✅ Old image successfully replaced and deleted from server");
             }
 
             setProjectData(prev =>
@@ -395,10 +436,14 @@ export default function Home() {
                 )
             );
 
-            console.log("✅ UI updated with new image");
+            // 
+
+// 
+            // console.log("✅ UI updated with new image");
 
             setTimeout(async () => {
-                console.log("🔄 Re-fetching image from database to confirm...");
+                // 
+                // console.log("🔄 Re-fetching image from database to confirm...");
                 const currentProject = projectData.find(p => p.id === projectId);
                 if (currentProject) {
                     await fetchProjectImages([currentProject]);
@@ -410,17 +455,19 @@ export default function Home() {
             }
 
         } catch (err) {
-            console.error("❌ Upload error:", err);
+            // 
+            // console.error("❌ Upload error:", err);
 
             let errorMessage = "Failed to upload image. Please try again.";
 
             if (axios.isAxiosError(err)) {
-                console.error("❌ Axios error details:", {
-                    message: err.message,
-                    response: err.response?.data,
-                    status: err.response?.status,
-                    code: err.code
-                });
+                // 
+                // console.error("❌ Axios error details:", {
+                    // message: err.message,
+                    // response: err.response?.data,
+                    // status: err.response?.status,
+                    // code: err.code
+                // });
 
                 if (err.response?.data?.message) {
                     errorMessage = err.response.data.message;
@@ -452,7 +499,8 @@ export default function Home() {
         if (!projectId) return;
 
         localStorage.setItem("projectId", JSON.stringify(projectId));
-        console.log(localStorage.getItem("projectId"));
+        // 
+        // console.log(localStorage.getItem("projectId"));
 
         const baseData = {
             projectId,
@@ -479,10 +527,14 @@ export default function Home() {
                 })
             );
 
-            console.log("✅ Project data saved to localStorage");
+            // 
+
+// 
+            // console.log("✅ Project data saved to localStorage");
 
         } catch (err) {
-            console.error("❌ Error fetching project data:", err);
+            // 
+            // console.error("❌ Error fetching project data:", err);
             localStorage.setItem(
                 "projectData",
                 JSON.stringify({
@@ -514,7 +566,10 @@ export default function Home() {
         const authUser = getAuthUser();
         const createdBy = authUser.id || authUser.uid;
 
-        console.log("🆕 Creating project:", finalProjectName, "by", createdBy.name);
+        // 
+
+// 
+        // console.log("🆕 Creating project:", finalProjectName, "by", createdBy.name);
 
         try {
             const { data } = await axios.post(ENDPOINTS.NEWPROJECT, {
@@ -523,18 +578,25 @@ export default function Home() {
                 createdBy,
             });
 
-            console.log("✅ Project creation response:", data);
+            // 
+
+// 
+            // console.log("✅ Project creation response:", data);
 
             if (data.token) localStorage.setItem("token", data.token);
 
             const projectId = data.project?.projectId ?? data.projectId;
             localStorage.setItem("projectId", String(projectId));
             if (!projectId) {
-                console.error("❌ No project ID in response:", data);
+                // 
+                // console.error("❌ No project ID in response:", data);
                 throw new Error("Project ID not found in response");
             }
 
-            console.log("✅ New project ID:", projectId);
+            // 
+
+// 
+            // console.log("✅ New project ID:", projectId);
 
             const authUser = getAuthUser();
             const baseProjectData = {
@@ -557,10 +619,14 @@ export default function Home() {
                     JSON.stringify({ ...baseProjectData, projectInfo, projectDetails })
                 );
 
-                console.log("✅ Project data fetched and saved");
+                // 
+
+// 
+                // console.log("✅ Project data fetched and saved");
 
             } catch (fetchErr) {
-                console.error("⚠️ Warning: Could not fetch full project data:", fetchErr);
+                // 
+                // console.error("⚠️ Warning: Could not fetch full project data:", fetchErr);
                 localStorage.setItem(
                     "projectData",
                     JSON.stringify({
@@ -578,14 +644,20 @@ export default function Home() {
 
             await fetchProjects();
 
-            console.log("🎉 Navigating to project detail");
+            // 
+
+// 
+            // console.log("🎉 Navigating to project detail");
             navigate("/Project_Detail");
 
         } catch (err) {
-            console.error("❌ Create project error:", err);
+            // 
+            // console.error("❌ Create project error:", err);
             if (axios.isAxiosError(err)) {
-                console.error("Response data:", err.response?.data);
-                console.error("Response status:", err.response?.status);
+                // 
+                // console.error("Response data:", err.response?.data);
+                // 
+                // console.error("Response status:", err.response?.status);
             }
             setError("Failed to create project. Please try again.");
         } finally {
@@ -652,11 +724,13 @@ export default function Home() {
                                 alt={project.name}
                                 className="relative mx-auto h-full object-contain opacity-90"
                                 onError={(e) => {
-                                    console.error("❌ Image load error for project:", project.id, project.image);
+                                    // 
+                                    // console.error("❌ Image load error for project:", project.id, project.image);
                                     e.currentTarget.style.display = 'none';
                                 }}
                                 onLoad={() => {
-                                    console.log("✅ Image loaded successfully for project:", project.id);
+                                    // 
+                                    // console.log("✅ Image loaded successfully for project:", project.id);
                                 }}
                             />
                             {isUploading ? (
@@ -744,149 +818,25 @@ export default function Home() {
     return (
         <div className="pt-14 h-screen flex flex-col" style={{ position: "relative" }}>
 
-            {/* ===== Canvas Starfield Background ===== */}
-            <canvas
-                ref={(canvas) => {
-                    if (!canvas || (canvas as any)._initialized) return;
-                    (canvas as any)._initialized = true;
-                    const ctx = canvas.getContext("2d")!;
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
-
-                    // Stars
-                    const stars = Array.from({ length: 220 }, () => ({
-                        x: Math.random() * canvas.width,
-                        y: Math.random() * canvas.height,
-                        r: Math.random() * 1.4 + 0.2,
-                        alpha: Math.random() * 0.7 + 0.2,
-                        speed: Math.random() * 0.3 + 0.05,
-                        drift: (Math.random() - 0.5) * 0.15,
-                    }));
-
-                    // Shooting stars
-                    const shoots: { x: number; y: number; vx: number; vy: number; len: number; alpha: number; life: number }[] = [];
-                    const spawnShoot = () => {
-                        shoots.push({
-                            x: Math.random() * canvas.width,
-                            y: Math.random() * canvas.height * 0.5,
-                            vx: 4 + Math.random() * 4,
-                            vy: 1.5 + Math.random() * 2,
-                            len: 80 + Math.random() * 80,
-                            alpha: 1,
-                            life: 1,
-                        });
-                    };
-                    setInterval(spawnShoot, 2800);
-
-                    let frame = 0;
-                    const draw = () => {
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                        // Deep space gradient
-                        const bg = ctx.createLinearGradient(0, 0, canvas.width * 0.6, canvas.height);
-                        bg.addColorStop(0, "#03040f");
-                        bg.addColorStop(0.45, "#060818");
-                        bg.addColorStop(1, "#04050e");
-                        ctx.fillStyle = bg;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                        // Nebula 1 — blue top-right
-                        const n1 = ctx.createRadialGradient(
-                            canvas.width * 0.78, canvas.height * 0.18, 0,
-                            canvas.width * 0.78, canvas.height * 0.18, 320
-                        );
-                        n1.addColorStop(0, "rgba(0,120,255,0.15)");
-n1.addColorStop(0.5, "rgba(0,80,200,0.07)")
-                        n1.addColorStop(1, "transparent");
-                        ctx.fillStyle = n1;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                        // Nebula 2 — purple bottom-left
-                        const n2 = ctx.createRadialGradient(
-                            canvas.width * 0.15, canvas.height * 0.75, 0,
-                            canvas.width * 0.15, canvas.height * 0.75, 280
-                        );
-                       n2.addColorStop(0, "rgba(0,200,255,0.10)");
-n2.addColorStop(0.5, "rgba(0,150,220,0.05)");
-                        n2.addColorStop(1, "transparent");
-                        ctx.fillStyle = n2;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                        // Nebula 3 — cyan mid
-                        const n3 = ctx.createRadialGradient(
-                            canvas.width * 0.5, canvas.height * 0.5, 0,
-                            canvas.width * 0.5, canvas.height * 0.5, 200
-                        );
-                       n3.addColorStop(0, "rgba(30,100,255,0.07)");
-                        n3.addColorStop(1, "transparent");
-                        ctx.fillStyle = n3;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                        // Stars
-                        frame++;
-                        stars.forEach((s) => {
-                            s.y += s.speed;
-                            s.x += s.drift;
-                            if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; }
-                            if (s.x > canvas.width) s.x = 0;
-                            if (s.x < 0) s.x = canvas.width;
-                            const twinkle = s.alpha * (0.75 + 0.25 * Math.sin(frame * 0.03 + s.x));
-                            ctx.beginPath();
-                            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-                            ctx.fillStyle = `rgba(200,220,255,${twinkle})`;
-                            ctx.fill();
-                        });
-
-                        // Shooting stars
-                        for (let i = shoots.length - 1; i >= 0; i--) {
-                            const sh = shoots[i];
-                            sh.x += sh.vx;
-                            sh.y += sh.vy;
-                            sh.life -= 0.018;
-                            if (sh.life <= 0) { shoots.splice(i, 1); continue; }
-                            const grad = ctx.createLinearGradient(sh.x, sh.y, sh.x - sh.len, sh.y - sh.len * 0.38);
-                            grad.addColorStop(0, `rgba(200,220,255,${sh.life * 0.9})`);
-                            grad.addColorStop(1, "transparent");
-                            ctx.strokeStyle = grad;
-                            ctx.lineWidth = 1.2;
-                            ctx.beginPath();
-                            ctx.moveTo(sh.x, sh.y);
-                            ctx.lineTo(sh.x - sh.len, sh.y - sh.len * 0.38);
-                            ctx.stroke();
-                        }
-
-                        requestAnimationFrame(draw);
-                    };
-                    draw();
-
-                    window.addEventListener("resize", () => {
-                        canvas.width = window.innerWidth;
-                        canvas.height = window.innerHeight;
-                    });
-                }}
-                style={{
-                    position: "fixed", inset: 0, zIndex: -1,
-                    width: "100%", height: "100%", display: "block",
-                }}
-            />
+         
             <header
-                className="w-full h-22 px-4 flex items-center justify-between fixed z-[50] backdrop-blur-md"
+                className="w-full h-22 px-4 flex items-center justify-between fixed z-[50] backdrop-blur-md "
                 style={{
-                  background: "rgba(2, 8, 28, 0.85)",
-borderBottom: "1px solid rgba(0,140,255,0.15)",
-boxShadow: "0 1px 30px rgba(0,80,255,0.15)",
+                    background: "rgba(2, 8, 28, 0.85)",
+                    borderBottom: "1px solid rgba(0,140,255,0.15)",
+                    boxShadow: "0 1px 30px rgba(0,80,255,0.15)",
                 }}>
                 <div className="flex flex-col">
                     <h2 className="text-3xl font-semibold text-gray-200 flex items-center gap-3">
                         Projects
                         <span className="text-xs rounded-md px-2 py-0.5 font-mono tracking-widest"
-  style={{
-    background: "rgba(0,120,255,0.12)",
-    border: "1px solid rgba(0,140,255,0.3)",
-    color: "#60a5fa"
-  }}>
-  pipeline
-</span>
+                            style={{
+                                background: "rgba(0,120,255,0.12)",
+                                border: "1px solid rgba(0,140,255,0.3)",
+                                color: "#60a5fa"
+                            }}>
+                            pipeline
+                        </span>
                     </h2>
 
                     <div className="flex items-center gap-3 mt-2">
@@ -1053,7 +1003,7 @@ boxShadow: "0 1px 30px rgba(0,80,255,0.15)",
             )}
             <div className="h-22"></div>
 
-            <main className="flex-1 overflow-y-auto overflow-x-hidden pt-4 pb-8 px-4 md:px-6 lg:px-2">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden pt-4 pb-8 px-4 md:px-6 lg:px-2 bg-gray-900">
                 {loadingProjects ? (
                     <PixelLoadingSkeleton />
                 ) : fetchError ? (

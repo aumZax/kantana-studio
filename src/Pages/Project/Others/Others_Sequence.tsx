@@ -262,7 +262,7 @@ export default function Others_Sequence() {
             entity_id: sequenceId
         })
             .then(res => {
-                console.log("✅ Tasks received:", res.data);
+//                console.log("✅ Tasks received:", res.data);
                 setTasks(res.data);
             })
             .catch(err => {
@@ -527,10 +527,10 @@ export default function Others_Sequence() {
             let uploadedFileUrls: string[] = [];
             let uploadedFileIds: number[] = [];
 
-            console.log('📁 Files array:', files);
+//            console.log('📁 Files array:', files);
 
             if (files.length > 0) {
-                console.log('📤 Uploading multiple files:', files.length);
+//                console.log('📤 Uploading multiple files:', files.length);
 
                 const formData = new FormData();
 
@@ -551,13 +551,13 @@ export default function Others_Sequence() {
                 }
 
                 const uploadData = await uploadResponse.json();
-                console.log('✅ Upload successful:', uploadData);
+//                console.log('✅ Upload successful:', uploadData);
                 uploadedFileIds = uploadData.files?.map((f: any) => f.id) ?? [];
 
                 // 🔥 backend จะส่งกลับ files array
                 uploadedFileUrls = uploadData.files.map((f: any) => f.fileUrl);
             } else {
-                console.log('ℹ️ No file selected');
+//                console.log('ℹ️ No file selected');
             }
 
             // 👉 เลือกใช้ยังไงก็ได้
@@ -598,7 +598,7 @@ export default function Others_Sequence() {
 
             const result = await createResponse.json();
             setCurrentNoteId(result.noteId);
-            console.log('✅ Note created successfully:', result);
+//            console.log('✅ Note created successfully:', result);
 
             // Reset
             setShowCreateSequence_Note(false);

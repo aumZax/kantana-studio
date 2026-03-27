@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
-
+import { useLocation } from "react-router-dom"; // เพิ่ม import
 interface NavbarProjectProps {
     activeTab?: string;
 }
@@ -14,6 +14,10 @@ export default function Navbar_Project({ activeTab = 'ProDetail' }: NavbarProjec
     const otherDropdownRef = useRef<HTMLDivElement>(null);
     const projectPagesDropdownRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
+    const location = useLocation(); // เพิ่ม
+
+
+    
 
     useEffect(() => {
         const loadProjectFromStorage = () => {
@@ -94,7 +98,7 @@ export default function Navbar_Project({ activeTab = 'ProDetail' }: NavbarProjec
         };
 
         loadProjectFromStorage();
-    }, []);
+    }, [location.state]);
 
     // Close dropdown when clicking outside
     useEffect(() => {

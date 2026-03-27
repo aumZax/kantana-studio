@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 
 import Navbar_Project from "../../components/Navbar_Project";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Check, FolderClosed, Image, LoaderCircle, Lock, Video } from 'lucide-react';
 
 
@@ -104,6 +104,7 @@ export default function Project_Sequence() {
     const [shotSearchText, setShotSearchText] = useState("");
     const [deleting, setDeleting] = useState(false);
     const [fetchError, setFetchError] = useState(false);
+    const location = useLocation(); // เพิ่มใน component
 
 
     const [expandedItem, setExpandedItem] = useState<{
@@ -166,7 +167,7 @@ export default function Project_Sequence() {
             .finally(() => {
                 setIsLoadingSequences(false);
             });
-    }, [projectId]);
+    }, [projectId, location.state]);
 
     useEffect(() => {
         if (isDragging) {
@@ -703,7 +704,7 @@ const handleOpenSequence = (sequence: any) => {
                 data: { sequenceId },
             });
 
-            console.log("✅ Sequence deleted:", sequenceId);
+            // console.log("✅ Sequence deleted:", sequenceId);
 
             // ⭐ ลบออกจาก state ทันที
             setSequences(prev =>

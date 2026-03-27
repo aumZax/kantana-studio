@@ -113,7 +113,7 @@ export default function Project_Detail() {
     const [loadingSequenceImages, setLoadingSequenceImages] = useState<Record<number, boolean>>({});
 
     const projectData = JSON.parse(localStorage.getItem("projectData") || "null");
-    console.log("🔍 Project Data from localStorage:", projectData); // เพิ่มบรรทัดนี้
+    // console.log("🔍 Project Data from localStorage:", projectData); // เพิ่มบรรทัดนี้
     const projectId = projectData?.projectId;
     const projectName = projectData?.projectName;
     const projectThumbnail = projectData?.thumbnail;
@@ -136,8 +136,8 @@ export default function Project_Detail() {
         );
     }
 
-    console.log("📌 CreatedBy:", projectCreatedBy); // เพิ่มบรรทัดนี้
-    console.log("📌 CreatedAt:", projectCreatedAt); // เพิ่มบรรทัดนี้
+    // console.log("📌 CreatedBy:", projectCreatedBy); // เพิ่มบรรทัดนี้
+    // console.log("📌 CreatedAt:", projectCreatedAt); // เพิ่มบรรทัดนี้
 
 
     const [fetchError, setFetchError] = useState(false);

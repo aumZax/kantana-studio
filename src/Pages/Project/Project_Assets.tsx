@@ -4,7 +4,7 @@ import { ChevronRight, ChevronDown, Image, FolderClosed, Eye, Box, Check, Loader
 import ENDPOINTS from '../../config';
 import axios from 'axios';
 import Navbar_Project from "../../components/Navbar_Project";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import PixelLoadingSkeleton from '../../components/PixelLoadingSkeleton';
 import ErrorLoadingState from '../../components/Errorloadingstate';
 
@@ -192,6 +192,9 @@ export default function Project_Assets() {
     const assetDragStart = useRef({ x: 0, y: 0 });
     const [deleting, setDeleting] = useState(false);
     const [fetchError, setFetchError] = useState(false);
+    const location = useLocation();
+
+
 
     const taskTemplates = [
         "Automotive - Concept",
@@ -271,7 +274,13 @@ export default function Project_Assets() {
         fetchAllProjectShots();
     }, []);
 
-
+useEffect(() => {
+    if (location.state) {
+        fetchAssets();
+        fetchSequences();
+        fetchAllProjectShots();
+    }
+}, [location.state]);
     useEffect(() => {
         const closeDropdown = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
@@ -336,7 +345,7 @@ export default function Project_Assets() {
             const data = response.data;
 
             // 🔍 Debug
-            console.log('📦 API Response:', data);
+//            console.log('📦 API Response:', data);
 
             // ✅ ไม่ต้อง map แล้ว ใช้ data โดยตรง
             setAssetData(data);
@@ -378,22 +387,22 @@ export default function Project_Assets() {
             const projectData = getProjectData();
 
             if (!projectData?.projectId) {
-                console.log("❌ No projectId found");
+//                console.log("❌ No projectId found");
                 setAllProjectShots([]);
                 return;
             }
 
-            console.log(`📤 Calling GET_ALL_PROJECT_SHOTS for projectId: ${projectData.projectId}`);
+//            console.log(`📤 Calling GET_ALL_PROJECT_SHOTS for projectId: ${projectData.projectId}`);
 
             // เรียก API เพื่อดึง shots ทั้งหมดจาก project_shots table
             const { data } = await axios.post(ENDPOINTS.GET_ALL_PROJECT_SHOTS, {
                 projectId: projectData.projectId
             });
 
-            console.log('📊 API Response from GET_ALL_PROJECT_SHOTS:', data);
+//            console.log('📊 API Response from GET_ALL_PROJECT_SHOTS:', data);
 
             if (Array.isArray(data)) {
-                console.log(`✅ Loaded ${data.length} shots from database`);
+//                console.log(`✅ Loaded ${data.length} shots from database`);
                 setAllProjectShots(data);
             } else {
                 console.error('❌ API response is not an array:', data);
@@ -414,24 +423,24 @@ export default function Project_Assets() {
 
     const fetchAssetShots = async (assetId: string) => {
         try {
-            console.log('🟡 Fetching asset shots for assetId:', assetId);
+//            console.log('🟡 Fetching asset shots for assetId:', assetId);
             const res = await axios.post(ENDPOINTS.GET_ASSET_SHOTS_JOIN, { assetId });
 
-            console.log('📊 Raw API Response:', res.data);
-            console.log('📊 Data type:', typeof res.data);
-            console.log('📊 Is Array?', Array.isArray(res.data));
-            console.log('📊 Length:', Array.isArray(res.data) ? res.data.length : 'N/A');
+//            console.log('📊 Raw API Response:', res.data);
+//            console.log('📊 Data type:', typeof res.data);
+//            console.log('📊 Is Array?', Array.isArray(res.data));
+//            console.log('📊 Length:', Array.isArray(res.data) ? res.data.length : 'N/A');
 
             if (Array.isArray(res.data)) {
-                console.log('✅ First item structure:', res.data[0]);
+//                console.log('✅ First item structure:', res.data[0]);
                 setAssetShots(res.data);
             } else if (res.data && Array.isArray(res.data.data)) {
                 // กรณี API ส่งกลับเป็น { data: [...] }
-                console.log('✅ Data is nested in data property');
+//                console.log('✅ Data is nested in data property');
                 setAssetShots(res.data.data);
             } else if (res.data && res.data.shots) {
                 // กรณี API ส่งกลับเป็น { shots: [...] }
-                console.log('✅ Data is nested in shots property');
+//                console.log('✅ Data is nested in shots property');
                 setAssetShots(res.data.shots);
             } else {
                 console.warn('⚠️ Invalid shots data format:', res.data);
@@ -458,7 +467,7 @@ export default function Project_Assets() {
             });
 
             if (linkRes.ok) {
-                console.log('✅ Shot added to asset successfully');
+//                console.log('✅ Shot added to asset successfully');
                 // รีเฟรช shots
                 fetchAssetShots(selectedAssetForDetail.id);
                 setAddShotInput('');
@@ -474,7 +483,7 @@ export default function Project_Assets() {
     const handleRemoveShotFromAsset = async (assetShotId: number) => {
         if (!selectedAssetForDetail) return;
 
-        console.log('🗑️ Attempting to remove shot with assetShotId:', assetShotId);
+//        console.log('🗑️ Attempting to remove shot with assetShotId:', assetShotId);
 
         try {
             const res = await fetch(ENDPOINTS.REMOVE_ASSET_FROM_SHOT, {
@@ -483,12 +492,12 @@ export default function Project_Assets() {
                 body: JSON.stringify({ assetShotId })
             });
 
-            console.log('Response status:', res.status);
+//            console.log('Response status:', res.status);
             const responseData = await res.json();
-            console.log('Response data:', responseData);
+//            console.log('Response data:', responseData);
 
             if (res.ok) {
-                console.log('✅ Shot removed from asset successfully');
+//                console.log('✅ Shot removed from asset successfully');
                 // รีเฟรช shots
                 fetchAssetShots(selectedAssetForDetail.id);
             } else {
@@ -638,7 +647,7 @@ export default function Project_Assets() {
                 value: asset[field as keyof Asset]
             });
 
-            console.log(`✅ Updated ${field} for asset ${asset.id}`);
+//            console.log(`✅ Updated ${field} for asset ${asset.id}`);
         } catch (error) {
             console.error(`❌ Error updating ${field}:`, error);
             alert(`Failed to update ${field}`);
@@ -663,7 +672,7 @@ export default function Project_Assets() {
             }
             setAssetData(newData);
 
-            console.log(`✅ Updated ${field} for asset ${asset.id}`);
+//            console.log(`✅ Updated ${field} for asset ${asset.id}`);
         } catch (error) {
             console.error(`❌ Error updating ${field}:`, error);
             alert(`Failed to update ${field}`);
@@ -694,7 +703,7 @@ export default function Project_Assets() {
                 value: newStatus
             });
 
-            console.log(`✅ Updated status to ${newStatus} for asset ${asset.id}`);
+//            console.log(`✅ Updated status to ${newStatus} for asset ${asset.id}`);
         } catch (error) {
             console.error('❌ Error updating status:', error);
             alert('Failed to update status');
@@ -768,11 +777,11 @@ export default function Project_Assets() {
 
             });
 
-            console.log('✅ Asset created successfully', data);
+//            console.log('✅ Asset created successfully', data);
 
             if (newAssetTaskTemplate && newAssetTaskTemplate.trim() !== '') {
 
-                console.log("Not A");
+//                console.log("Not A");
 
                 let typeNum: number | null = null;
 
@@ -841,7 +850,7 @@ export default function Project_Assets() {
                         JSON.stringify(updatedSelected)
                     );
 
-                    console.log('✅ Synced file_url:', updatedSelected);
+//                    console.log('✅ Synced file_url:', updatedSelected);
                     break;
                 }
             }
@@ -924,7 +933,7 @@ export default function Project_Assets() {
     const fetchAssetSequences = async (assetId: string) => {
         try {
             const res = await axios.post(ENDPOINTS.GET_ASSET_SEQUENCES_JOIN, { assetId });
-            console.log('📋 Asset sequences data:', res.data);
+//            console.log('📋 Asset sequences data:', res.data);
             setAssetSequences(res.data);
         } catch (err) {
             console.error('Error fetching asset sequences:', err);
@@ -946,7 +955,7 @@ export default function Project_Assets() {
             });
 
             if (linkRes.ok) {
-                console.log('✅ Sequence added to asset successfully');
+//                console.log('✅ Sequence added to asset successfully');
                 // รีเฟรช sequences
                 fetchAssetSequences(selectedAssetForDetail.id);
                 setAddSequenceInput('');
@@ -962,10 +971,10 @@ export default function Project_Assets() {
     const handleRemoveSequenceFromAsset = async (assetSequenceId: number) => {
         if (!selectedAssetForDetail) return;
 
-        console.log('🗑️ Attempting to remove sequence with assetSequenceId:', assetSequenceId);
+//        console.log('🗑️ Attempting to remove sequence with assetSequenceId:', assetSequenceId);
         const requestBody = { assetSequenceId };
-        console.log('📤 Sending request body:', requestBody);
-        console.log('📤 JSON stringified:', JSON.stringify(requestBody));
+//        console.log('📤 Sending request body:', requestBody);
+//        console.log('📤 JSON stringified:', JSON.stringify(requestBody));
 
         try {
             const res = await fetch(ENDPOINTS.REMOVE_ASSET_FROM_SEQUENCE, {
@@ -974,12 +983,12 @@ export default function Project_Assets() {
                 body: JSON.stringify(requestBody)
             });
 
-            console.log('Response status:', res.status);
+//            console.log('Response status:', res.status);
             const responseData = await res.json();
-            console.log('Response data:', responseData);
+//            console.log('Response data:', responseData);
 
             if (res.ok) {
-                console.log('✅ Sequence removed from asset successfully');
+//                console.log('✅ Sequence removed from asset successfully');
                 // รีเฟรช sequences
                 fetchAssetSequences(selectedAssetForDetail.id);
             } else {
@@ -998,7 +1007,7 @@ export default function Project_Assets() {
                 data: { assetId },
             });
 
-            console.log("✅ Asset deleted:", assetId);
+//            console.log("✅ Asset deleted:", assetId);
 
             // ⭐ ลบ asset ออกจาก assetData (ตัวที่ UI ใช้จริง)
             setAssetData(prev =>
@@ -2003,8 +2012,8 @@ export default function Project_Assets() {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                console.log('🖱️ Clicked remove button for sequence:', seq);
-                                                                console.log('Sequence id:', seq.id);
+//                                                                console.log('🖱️ Clicked remove button for sequence:', seq);
+//                                                                console.log('Sequence id:', seq.id);
                                                                 handleRemoveSequenceFromAsset(seq.id);
                                                             }}
                                                             className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${expandedItem?.type === "sequence" && expandedItem?.id === seq.sequence_id

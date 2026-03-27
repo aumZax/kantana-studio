@@ -329,7 +329,7 @@ const VersionTab: React.FC<VersionTabProps> = ({
                             const statusKey = (version.status || 'wtg') as VersionStatus;
                             const statusInfo = versionStatusConfig[statusKey] ?? versionStatusConfig.wtg;
                             const mock = isMockRow(version.id);
-                            console.log("created_at raw:", version.created_at, "→ formatted:", dateFormatter(version.created_at));
+                            // console.log("created_at raw:", version.created_at, "→ formatted:", dateFormatter(version.created_at));
                             return (
                                 <tr
                                     key={`ver-${version.id}-${index}`}

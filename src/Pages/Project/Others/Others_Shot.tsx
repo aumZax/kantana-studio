@@ -385,7 +385,7 @@ export default function Others_Shot() {
             entity_id: shotId
         })
             .then(res => {
-                console.log("✅ Tasks received:", res.data);
+//                console.log("✅ Tasks received:", res.data);
                 setTasks(res.data);
             })
             .catch(err => {
@@ -587,7 +587,7 @@ export default function Others_Shot() {
                     if (!uploadRes.ok) throw new Error(`Upload failed: ${file.name}`);
                     const uploadData = await uploadRes.json();
 
-                    console.log('📦 uploadData:', JSON.stringify(uploadData)); // ← เช็คก่อน
+//                    console.log('📦 uploadData:', JSON.stringify(uploadData)); // ← เช็คก่อน
 
                     // ✅ เปลี่ยนจาก data.file.fileUrl → data.files[0].fileUrl
                     const fileUrl = uploadData?.files?.[0]?.fileUrl;
@@ -1123,7 +1123,7 @@ export default function Others_Shot() {
             });
 
             const data = await res.json();
-            console.log('📥 Upload response:', res.status, data);
+//            console.log('📥 Upload response:', res.status, data);
 
             if (res.ok) {
                 const newFileUrl = data?.files?.[0]?.fileUrl;
@@ -1150,7 +1150,7 @@ export default function Others_Shot() {
             alert("Upload error: " + err);
         } finally {
             // ✅ Always reset uploading state — this was the bug
-            console.log('🔓 setIsUploadingThumbnail(false) called');
+//            console.log('🔓 setIsUploadingThumbnail(false) called');
             setIsUploadingThumbnail(false);
         }
     };

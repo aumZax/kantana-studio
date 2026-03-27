@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronRight, ChevronDown, Image, FolderClosed, Eye, Box, Lock, Film, Check, LoaderCircle } from 'lucide-react';
 import Navbar_Project from "../../components/Navbar_Project";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import ENDPOINTS from "../../config";
 import PixelLoadingSkeleton from '../../components/PixelLoadingSkeleton';
@@ -148,6 +148,7 @@ export default function ProjectShot() {
     const [showExpandedPanel, setShowExpandedPanel] = useState(false);
     const [shotDetail, setShotDetail] = useState<ShotDetail | null>(null);
     const [isLoadingShotDetail, setIsLoadingShotDetail] = useState(false);
+    const location = useLocation();
 
     const taskTemplates = [
         "Animation - Shot",
@@ -188,10 +189,11 @@ export default function ProjectShot() {
     }, [shotData.length]);
 
     useEffect(() => {
+        
         fetchShots();
         fetchSequences();
         fetchAllProjectAssets(); 
-    }, []); 
+    }, [location.state]); 
 
     useEffect(() => {
         if (shotDetail?.assets) {
@@ -273,7 +275,7 @@ export default function ProjectShot() {
                 projectId: projectData.projectId
             });
 
-            console.log("fetchAllProjectAssets response:", response.data);
+//            console.log("fetchAllProjectAssets response:", response.data);
 
             const data = response.data;
             let assets = [];
@@ -637,14 +639,14 @@ export default function ProjectShot() {
         if (!shotDetail?.sequence) return;
         if (!confirm("Remove this sequence?")) return;
         try {
-            console.log("🚀 Removing sequence from shot:", shotDetail.shot_id);
-            console.log("📡 Endpoint:", ENDPOINTS.REMOVE_SEQUENCE_FROM_SHOT);
+//            console.log("🚀 Removing sequence from shot:", shotDetail.shot_id);
+//            console.log("📡 Endpoint:", ENDPOINTS.REMOVE_SEQUENCE_FROM_SHOT);
 
             const response = await axios.put(ENDPOINTS.REMOVE_SEQUENCE_FROM_SHOT, {
                 shotId: shotDetail.shot_id
             });
 
-            console.log("✅ Response:", response.data);
+//            console.log("✅ Response:", response.data);
 
             if (response.data.success) {
                 await fetchShotDetail(String(shotDetail.shot_id));

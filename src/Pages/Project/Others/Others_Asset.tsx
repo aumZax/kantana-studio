@@ -449,8 +449,8 @@ export default function Others_Asset() {
 
     useEffect(() => {
 
-        console.log("🔍 AssetID:", AssetID);
-        console.log("🔍 projectId:", projectId);
+//        console.log("🔍 AssetID:", AssetID);
+//        console.log("🔍 projectId:", projectId);
 
         if (!AssetID || !projectId) {
             console.warn("⚠️ Missing AssetID or projectId");
@@ -463,7 +463,7 @@ export default function Others_Asset() {
             entity_id: AssetID
         })
             .then(res => {
-                console.log("✅ Tasks received:", res.data);
+//                console.log("✅ Tasks received:", res.data);
                 setTasks(res.data);
             })
             .catch(err => {
@@ -607,7 +607,7 @@ export default function Others_Asset() {
                 field: 'status',
                 value: newStatus
             });
-            console.log(`✅ Updated status to ${newStatus} for asset ${assetData.id}`);
+//            console.log(`✅ Updated status to ${newStatus} for asset ${assetData.id}`);
         } catch (error) {
             console.error('❌ Error updating status:', error);
             alert('Failed to update status');

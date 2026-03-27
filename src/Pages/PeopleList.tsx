@@ -570,7 +570,7 @@ export default function PeopleList() {
         .map(t => ({ ...t, role: "assignee" as const }));
 
       const uniqueKeys = [...new Set(tasks.map(t => `${t.entity_type}_${t.entity_id}`))];
-      console.log("raw tasks sample:", raw[0]);
+      // console.log("raw tasks sample:", raw[0]);
 
       const metas = await Promise.all(
         uniqueKeys.map(async key => {
@@ -588,7 +588,7 @@ export default function PeopleList() {
             if (r.ok) {
               const d = await r.json();
               const row = d[0] ?? {};
-              console.log(`[${type}] entity detail row:`, row);  // ← เพิ่มบรรทัดนี้
+              // console.log(`[${type}] entity detail row:`, row);  // ← เพิ่มบรรทัดนี้
               name = row[nameKeyMap[type]] ?? name;
               file_url = row[urlKeyMap[type]];
               // capture entity-specific fields
