@@ -1,5 +1,5 @@
 // endpoints.ts
-const BASE_URL = "https://century-beverage-guards-christopher.trycloudflare.com/";
+const BASE_URL = "https://century-beverage-guards-christopher.trycloudflare.com";
 // const BASE_URL = "http://localhost:3000";
 
 // maxaaaaaa
