@@ -8,7 +8,7 @@ import axios from "axios";
 import ENDPOINTS from "../../config";
 import PixelLoadingSkeleton from '../../components/PixelLoadingSkeleton';
 import ErrorLoadingState from '../../components/Errorloadingstate';
-
+import NetworkCanvas from '../../components/NetworkCanvas';
 
 type StatusType = keyof typeof statusConfig;
 
@@ -909,10 +909,11 @@ export default function ProjectShot() {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-gray-900">
+        <div className="h-screen flex flex-col">
             <div className="pt-14">
                 <Navbar_Project activeTab="Shots" />
             </div>
+            <NetworkCanvas />
             <div className="pt-12">
                 <header className="w-full h-22 px-4 flex items-center justify-between fixed z-[50] bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-gray-700/50 backdrop-blur-sm shadow-lg">
                     <div className="flex flex-col">

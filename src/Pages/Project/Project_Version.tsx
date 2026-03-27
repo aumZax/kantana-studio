@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import PixelLoadingSkeleton from "../../components/PixelLoadingSkeleton";
 import ErrorLoadingState from "../../components/Errorloadingstate";
+import NetworkCanvas from '../../components/NetworkCanvas';
 // ===================== Types =====================
 type StatusType = keyof typeof statusConfig;
 
@@ -382,9 +383,11 @@ export default function Project_Version() {
     // ===================== RENDER =====================
     return (
         <div className="fixed inset-0 pt-14 bg-black">
+            
             <Navbar_Project activeTab="Versions" />
+            <NetworkCanvas />
 
-            <main className="pt-12 h-[calc(100vh-3.5rem)] flex flex-col bg-gray-900 overflow-hidden">
+            <main className="pt-12 h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
 
 
                 {/* ---- Toolbar ---- */}
@@ -610,7 +613,7 @@ export default function Project_Version() {
                                                     return (
                                                         <tr
                                                             key={`v-${version.id}`}
-                                                            className="group hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-transparent transition-all duration-200"
+                                                            className="group hover:bg-gradient-to-r bg-gray-500/10 hover:from-blue-500/5 hover:to-transparent transition-all duration-200"
                                                             onContextMenu={e => {
                                                                 e.preventDefault();
                                                                 e.stopPropagation();

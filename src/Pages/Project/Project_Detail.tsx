@@ -44,6 +44,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import ENDPOINTS from "../../config";
 import ErrorLoadingState from '../../components/Errorloadingstate';
+import NetworkCanvas from '../../components/NetworkCanvas';
 
 type StatusType = 'wtg' | 'ip' | 'fin';
 
@@ -345,14 +346,15 @@ export default function Project_Detail() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-900 text-gray-100">
+        <div className="min-h-screen text-gray-100">
             <div className="pt-14">
                 <Navbar_Project />
+                <NetworkCanvas />
             </div>
             <div className="h-10"></div>
             <div className="max-w-7xl mx-auto p-5">
                 {/* Project Header */}
-                <div className="mb-6 bg-gradient-to-br from-gray-800 via-gray-800 to-gray-900 rounded-2xl overflow-hidden border border-gray-700/50 shadow-2xl">
+                <div className="mb-6 rounded-2xl overflow-hidden border border-gray-700/50 shadow-2xl">
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 lg:min-h-auto">
                         {/* Left: Thumbnail */}
                         <div className="lg:col-span-2 relative h-80 lg:h-80 overflow-hidden bg-gray-900/50">
@@ -442,11 +444,11 @@ export default function Project_Detail() {
                 </div>
 
                 {/* Main Content - Two Column Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 backdrop-blur-sm">
                     {/* Left Column - Sequences (2/3 width) */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Sequences Section with Filters */}
-                        <div className="bg-gray-800 rounded-lg p-5 border border-gray-700">
+                        <div className="bg-gray-500/10  rounded-lg p-5 border border-gray-700">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-bold text-white flex items-center">
                                     <Layers className="w-5 h-5 mr-2 text-purple-400" />
@@ -608,7 +610,7 @@ export default function Project_Detail() {
                             )}
 
                             {/* Sequences Card */}
-                            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-purple-500 transition-colors">
+                            <div className="bg-gray-500/10 rounded-lg p-4 border border-gray-700 hover:border-purple-500 transition-colors">
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center">
                                         <ListChecks className="w-6 h-6 text-purple-400 mr-2" />
@@ -634,7 +636,7 @@ export default function Project_Detail() {
                             </div>
 
                             {/* Shots Card */}
-                            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-blue-500 transition-colors">
+                            <div className="bg-gray-500/10 rounded-lg p-4 border border-gray-700 hover:border-blue-500 transition-colors">
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center">
                                         <Film className="w-6 h-6 text-blue-400 mr-2" />
@@ -658,7 +660,7 @@ export default function Project_Detail() {
                             </div>
 
                             {/* Assets Card */}
-                            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-green-500 transition-colors">
+                            <div className="bg-gray-500/10 rounded-lg p-4 border border-gray-700 hover:border-green-500 transition-colors">
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center">
                                         <Image className="w-6 h-6 text-green-400 mr-2" />
@@ -685,7 +687,7 @@ export default function Project_Detail() {
                         </div>
 
                         {/* Status Overview */}
-                        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 relative">
+                        <div className="bg-gray-500/10 rounded-lg p-4 border border-gray-700 relative">
                             {/* Loading Overlay for Status Overview */}
                             {loadingStats && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm z-20 rounded-lg">

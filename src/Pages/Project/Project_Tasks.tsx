@@ -9,7 +9,7 @@ import RightPanel from "../../components/RightPanel";
 import { createPortal } from 'react-dom';
 import PixelLoadingSkeleton from "../../components/PixelLoadingSkeleton";
 import ErrorLoadingState from '../../components/Errorloadingstate';
-
+import NetworkCanvas from '../../components/NetworkCanvas';
 
 type StatusType = keyof typeof statusConfig;
 
@@ -1094,10 +1094,11 @@ const pagedGroups = useMemo(() => {
             onMouseUp={handleMouseUp}
         >
             <Navbar_Project activeTab="Tasks" />
+            <NetworkCanvas />
 
             <main className="pt-12 h-[calc(100vh-3.5rem)] flex">
                 {/* Main content */}
-                <div className="flex-1 flex flex-col bg-gray-900 overflow-hidden">
+                <div className="flex-1 flex flex-col overflow-hidden">
 
 
                     {/* ---- Toolbar ---- */}
@@ -1392,7 +1393,7 @@ const pagedGroups = useMemo(() => {
                                                         key={task.id}
                                                         onContextMenu={(e) => handleTaskContextMenu(e, task)}
                                                         onClick={() => setSelectedTask(task)}
-                                                        className="group hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-transparent transition-all duration-200"
+                                                        className="group hover:bg-gradient-to-r bg-gray-500/10 hover:from-blue-500/5 hover:to-transparent transition-all duration-200"
                                                     >
                                                         <td className="px-4 py-4">
                                                             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 text-gray-400 text-sm font-medium group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-colors">

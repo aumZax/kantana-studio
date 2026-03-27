@@ -9,6 +9,8 @@ import React from "react";
 import PixelLoadingSkeleton from "../components/PixelLoadingSkeleton";
 // บรรทัดแรกๆ ของไฟล์
 import ErrorLoadingState from '../components/Errorloadingstate';
+import NetworkCanvas from '../components/NetworkCanvas';
+
 /* ══════════════════════════════════════════════════════
    TYPES
 ══════════════════════════════════════════════════════ */
@@ -228,7 +230,7 @@ function EntitySection({ group }: { group: EntityGroup }) {
         return (
           <tr
             key={`${task.id}-${task.role}`}
-            className="group hover:bg-white/[0.025] transition-all duration-150"
+            className="group hover:bg-white/[0.025] transition-all duration-150 bg-gray-500/10"
             style={{
               borderBottom: isLast
                 ? `2px solid ${cfg.accent}30`  // เส้นหนาแบ่ง entity
@@ -696,7 +698,7 @@ export default function PeopleList() {
      MAIN RENDER
   ══════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen" style={{ background: "#0f172a" }}>
+    <div className="min-h-screen">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; }
@@ -710,8 +712,9 @@ export default function PeopleList() {
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+      <NetworkCanvas />
 
-      <div className="flex min-h-screen pt-14" style={{ background: "#0f172a" }}>
+      <div className="flex min-h-screen pt-14" >
 
 
 

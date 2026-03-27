@@ -12,6 +12,8 @@ import ShotSequenceTab from '../../../components/Shot_SequenceTab';
 import TaskTab from '../../../components/TaskTab';
 import RightPanel from "../../../components/RightPanel";
 import Asset_SequenceTab from '../../../components/Asset_SequenceTab';
+import NetworkCanvas from '../../../components/NetworkCanvas';
+
 
 //============================================================================================================================================//
 
@@ -996,19 +998,21 @@ export default function Others_Sequence() {
 
 
     return (
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800"
+        <div className="min-h-screen flex flex-col "
             onClick={handleClickOutside}
             onMouseMove={handleMouseMove}
             onMouseUp={() => setIsResizing(false)}
         >
             <div className="pt-14">
                 <Navbar_Project activeTab="other" />
+                            <NetworkCanvas />
+
             </div>
 
             <div className="pt-12 flex-1">
                 <div className="p-6 max-w-[1600px] mx-auto">
                     {/* Header Card - ปรับให้กระชับขึ้น */}
-                    <div className="w-full bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50">
+                    <div className="w-full bg-gradient-to-br from-gray-800/10 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50">
                         {/* Breadcrumb */}
                         <div className="mb-4 flex items-center gap-2 text-sm text-gray-400">
                             <span className="font-bold text-white">🎬 {SequenceData.sequence}</span>
@@ -1330,7 +1334,7 @@ export default function Others_Sequence() {
                     </div>
 
                     {/* Tab Content Section */}
-                    <div className="mt-4 p-5 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-xl border border-gray-700/50">
+                    <div className="mt-4 p-5 bg-gradient-to-br from-gray-800/10 to-gray-900 rounded-xl shadow-xl border border-gray-700/50">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg text-white font-bold flex items-center gap-2">
                                 <span className="w-1 h-6 bg-blue-500 rounded-full"></span>

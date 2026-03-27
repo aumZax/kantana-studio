@@ -5,6 +5,7 @@ import ENDPOINTS from "../config";
 import { ChevronDown, LoaderCircle, Trash2 } from 'lucide-react';
 import PixelLoadingSkeleton from '../components/PixelLoadingSkeleton';
 import ErrorLoadingState from '../components/Errorloadingstate';
+import NetworkCanvas from '../components/NetworkCanvas';
 
 interface Project {
     id: string;
@@ -158,7 +159,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("📦 Raw API response:", data.projects);
 
             const allProjects: Project[] = data.projects.map(p => {
@@ -185,7 +186,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("✅ Processed projects:", allProjects.length);
 
             const myProjects = allProjects.filter(p => p.creatorUid === currentUserUid);
@@ -195,7 +196,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log(`📊 My projects: ${myProjects.length}, Shared projects (Active): ${sharedProjects.length}`);
 
             const sortedProjects = [...myProjects, ...sharedProjects];
@@ -290,7 +291,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("✅ Delete success:", data);
             setDeleteConfirm(null);
             setProjectData((prev) => prev.filter((p) => p.id !== projectId));
@@ -353,13 +354,13 @@ export default function Home() {
 
         // 
 
-// 
+        // 
         // console.log("📤 Starting image upload for project:", projectId);
         // 
         // console.log("📁 File details:", {
-            // name: file.name,
-            // type: file.type,
-            // size: `${(file.size / 1024).toFixed(2)} KB`
+        // name: file.name,
+        // type: file.type,
+        // size: `${(file.size / 1024).toFixed(2)} KB`
         // });
 
         if (oldImageUrl) {
@@ -387,7 +388,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("📤 Uploading file to server...");
             // 
             // console.log("📍 Endpoint:", ENDPOINTS.UPLOAD);
@@ -409,7 +410,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("📦 Server response:", data);
 
             const downloadURL = data.file?.fileUrl;
@@ -420,7 +421,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("✅ Image URL received:", downloadURL);
 
             if (oldImageUrl) {
@@ -438,7 +439,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("✅ UI updated with new image");
 
             setTimeout(async () => {
@@ -463,10 +464,10 @@ export default function Home() {
             if (axios.isAxiosError(err)) {
                 // 
                 // console.error("❌ Axios error details:", {
-                    // message: err.message,
-                    // response: err.response?.data,
-                    // status: err.response?.status,
-                    // code: err.code
+                // message: err.message,
+                // response: err.response?.data,
+                // status: err.response?.status,
+                // code: err.code
                 // });
 
                 if (err.response?.data?.message) {
@@ -529,7 +530,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("✅ Project data saved to localStorage");
 
         } catch (err) {
@@ -568,7 +569,7 @@ export default function Home() {
 
         // 
 
-// 
+        // 
         // console.log("🆕 Creating project:", finalProjectName, "by", createdBy.name);
 
         try {
@@ -580,7 +581,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("✅ Project creation response:", data);
 
             if (data.token) localStorage.setItem("token", data.token);
@@ -595,7 +596,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("✅ New project ID:", projectId);
 
             const authUser = getAuthUser();
@@ -621,7 +622,7 @@ export default function Home() {
 
                 // 
 
-// 
+                // 
                 // console.log("✅ Project data fetched and saved");
 
             } catch (fetchErr) {
@@ -646,7 +647,7 @@ export default function Home() {
 
             // 
 
-// 
+            // 
             // console.log("🎉 Navigating to project detail");
             navigate("/Project_Detail");
 
@@ -818,7 +819,9 @@ export default function Home() {
     return (
         <div className="pt-14 h-screen flex flex-col" style={{ position: "relative" }}>
 
-         
+          <NetworkCanvas />
+
+
             <header
                 className="w-full h-22 px-4 flex items-center justify-between fixed z-[50] backdrop-blur-md "
                 style={{
@@ -899,7 +902,7 @@ export default function Home() {
                             {/* Project Name */}
                             <div>
                                 <label className="block text-xs font-medium text-gray-400 mb-2 tracking-wide uppercase">
-                                    Project Name
+                                    Project Name <span className='text-red-500'>*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -1003,7 +1006,7 @@ export default function Home() {
             )}
             <div className="h-22"></div>
 
-            <main className="flex-1 overflow-y-auto overflow-x-hidden pt-4 pb-8 px-4 md:px-6 lg:px-2 bg-gray-900">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden pt-4 pb-8 px-4 md:px-6 lg:px-2 ">
                 {loadingProjects ? (
                     <PixelLoadingSkeleton />
                 ) : fetchError ? (

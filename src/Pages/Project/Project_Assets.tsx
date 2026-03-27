@@ -7,7 +7,7 @@ import Navbar_Project from "../../components/Navbar_Project";
 import { useLocation, useNavigate } from "react-router-dom";
 import PixelLoadingSkeleton from '../../components/PixelLoadingSkeleton';
 import ErrorLoadingState from '../../components/Errorloadingstate';
-
+import NetworkCanvas from '../../components/NetworkCanvas';
 
 type StatusType = keyof typeof statusConfig;
 
@@ -1087,9 +1087,10 @@ useEffect(() => {
 
 
     return (
-        <div className="h-screen flex flex-col bg-gray-900">
+        <div className="h-screen flex flex-col ">
             <div className="pt-14">
                 <Navbar_Project activeTab="Assets" />
+                <NetworkCanvas />
             </div>
 
             <div className="pt-12">

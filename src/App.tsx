@@ -351,8 +351,8 @@ function MainLayout() {
 
       <header className="fixed w-full h-14 leading-tight shadow-2xl flex items-center justify-between px-2 z-[150] border-b border-gray-700/50 backdrop-blur-sm"
          style={{
-                    background: "rgba(3, 4, 15, 0.72)",
-                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                    background: "rgba(10, 10, 20, 0.72)",
+                    borderBottom: "1px solid rgba(255,255,255,0.16)",
                     boxShadow: "0 1px 30px rgba(0,0,0,0.5)",
                 }}>
         {/* LEFT */}

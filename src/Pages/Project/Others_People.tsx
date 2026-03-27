@@ -6,6 +6,8 @@ import ENDPOINTS from "../../config";
 import axios from "axios";
 import PixelLoadingSkeleton from "../../components/PixelLoadingSkeleton";
 import { useLocation } from "react-router-dom";
+import NetworkCanvas from '../../components/NetworkCanvas';
+
 
 /* ================= Types ================= */
 interface Person {
@@ -224,11 +226,12 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
 
   /* ═══════════ Render ═══════════ */
   return (
-    <div className="h-screen flex flex-col text-gray-200 bg-gray-900">
+    <div className="h-screen flex flex-col text-gray-200 ">
       {!fromMainNav && (
         <div>
           <div className="pt-14">
             <Navbar_Project activeTab="other" />
+            <NetworkCanvas />
           </div>
           <div className="pt-10"></div>
         </div>
@@ -236,7 +239,11 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
       )}
 
       {fromMainNav && (
-        <div className="pt-14"></div>
+        <div className="pt-14">
+            <NetworkCanvas />
+
+        </div>
+        
       )}
 
       {/* ── Header ── */}
@@ -335,7 +342,7 @@ const canEditPerm = fromMainNav || ["Admin", "Owner"].includes(permission || "")
                     ))}
                   </tr>
                 </thead>
-                <tbody className="bg-gray-900">
+                <tbody className="bg-gray-200/10">
                   {people.map((p) => (
                     <tr key={p.id} className="border-t border-gray-700 hover:bg-gray-800" onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, peopleId: p.id.toString(), peopleEmail: p.email }); }}>
                      

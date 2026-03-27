@@ -14,6 +14,7 @@ import RightPanel from "../../../components/RightPanel";
 import VersionTab from "../../../components/VersionTab";
 import ShotAssetTab from "../../../components/Shot_AssetTab";
 import RightPanelNote from "../../../components/RightPanelNote";
+import NetworkCanvas from '../../../components/NetworkCanvas';
 
 //============================================================================================================================================//
 
@@ -449,8 +450,8 @@ export default function Others_Asset() {
 
     useEffect(() => {
 
-//        console.log("🔍 AssetID:", AssetID);
-//        console.log("🔍 projectId:", projectId);
+        //        console.log("🔍 AssetID:", AssetID);
+        //        console.log("🔍 projectId:", projectId);
 
         if (!AssetID || !projectId) {
             console.warn("⚠️ Missing AssetID or projectId");
@@ -463,7 +464,7 @@ export default function Others_Asset() {
             entity_id: AssetID
         })
             .then(res => {
-//                console.log("✅ Tasks received:", res.data);
+                //                console.log("✅ Tasks received:", res.data);
                 setTasks(res.data);
             })
             .catch(err => {
@@ -607,7 +608,7 @@ export default function Others_Asset() {
                 field: 'status',
                 value: newStatus
             });
-//            console.log(`✅ Updated status to ${newStatus} for asset ${assetData.id}`);
+            //            console.log(`✅ Updated status to ${newStatus} for asset ${assetData.id}`);
         } catch (error) {
             console.error('❌ Error updating status:', error);
             alert('Failed to update status');
@@ -1048,7 +1049,7 @@ export default function Others_Asset() {
                 start_date: '',
                 due_date: '',
                 description: '',
-                });
+            });
             setShowCreateAsset_Task(false);
 
 
@@ -1250,19 +1251,21 @@ export default function Others_Asset() {
 
 
     return (
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800"
+        <div className="min-h-screen flex flex-col"
             onClick={handleClickOutside}
             onMouseMove={handleMouseMove}
             onMouseUp={() => setIsResizing(false)}
         >
             <div className="pt-14">
                 <Navbar_Project activeTab="other" />
+                            <NetworkCanvas />
+
             </div>
 
             <div className="pt-12 flex-1">
                 <div className="p-6 max-w-[1600px] mx-auto">
                     {/* Header Card */}
-                    <div className="w-full bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50">
+                    <div className="w-full bg-gradient-to-br from-gray-800/10 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50">
                         {/* Breadcrumb */}
                         {/* Breadcrumb */}
                         <div className="mb-4 flex items-center gap-2 text-sm text-gray-400">
@@ -1679,14 +1682,14 @@ export default function Others_Asset() {
                                 <button
                                     key={tab}
                                     onClick={() => {
-    setActiveTab(tab);
-    setIsPanelOpen(false);
-    setIsNotePanelOpen(false);
-    setTimeout(() => {
-        setSelectedTask(null);
-        setSelectedNote(null);
-    }, 300);
-}}
+                                        setActiveTab(tab);
+                                        setIsPanelOpen(false);
+                                        setIsNotePanelOpen(false);
+                                        setTimeout(() => {
+                                            setSelectedTask(null);
+                                            setSelectedNote(null);
+                                        }, 300);
+                                    }}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === tab
                                         ? 'text-white shadow-lg bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-700 hover:to-blue-600'
                                         : 'text-gray-300 bg-gradient-to-r from-gray-700 to-gray-700 hover:from-gray-600 hover:to-gray-600'
@@ -1699,7 +1702,7 @@ export default function Others_Asset() {
                     </div>
 
                     {/* Tab Content Section */}
-                    <div className="mt-4 p-5 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-xl border border-gray-700/50">
+                    <div className="mt-4 p-5 bg-gradient-to-br from-gray-800/10 to-gray-900 rounded-xl shadow-xl border border-gray-700/50">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg text-white font-bold flex items-center gap-2">
                                 <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
@@ -2106,7 +2109,7 @@ export default function Others_Asset() {
                                     />
                                 </div>
 
-                          
+
 
                                 <div className="space-y-1.5">
                                     <label className="block text-xs font-medium text-gray-300">

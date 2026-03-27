@@ -14,6 +14,7 @@ import RightPanel from "../../../components/RightPanel";
 import { useNavigate } from 'react-router-dom';
 import VersionTab from '../../../components/VersionTab';
 import RightPanelNote from "../../../components/RightPanelNote";
+import NetworkCanvas from '../../../components/NetworkCanvas';
 
 
 //============================================================================================================================================//
@@ -1278,18 +1279,20 @@ export default function Others_Shot() {
     //============================================================================================================================================//
 
     return (
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800" onClick={handleClickOutside}
+        <div className="min-h-screen flex flex-col " onClick={handleClickOutside}
             onMouseMove={handleMouseMove}
             onMouseUp={() => setIsResizing(false)}
         >
             <div className="pt-14">
                 <Navbar_Project activeTab="other" />
+                            <NetworkCanvas />
+
             </div>
 
             <div className="pt-12 flex-1">
                 <div className="p-6 max-w-[1600px] mx-auto">
                     {/* Header Card - ปรับให้กระชับขึ้น */}
-                    <div className="w-full bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50">
+                    <div className="w-full bg-gradient-to-br from-gray-800/10 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50">
                         {/* Breadcrumb - ย่อให้เล็กลง */}
                         <div className="mb-4 flex items-center gap-2 text-sm text-gray-400">
                             <span className="hover:text-white cursor-pointer transition-colors">📁 {shotData.sequence}</span>
@@ -1655,7 +1658,7 @@ export default function Others_Shot() {
                     </div>
 
                     {/* Tab Content Section - ปรับให้กระชับ */}
-                    <div className="mt-4 p-5 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-xl border border-gray-700/50">
+                    <div className="mt-4 p-5 bg-gradient-to-br from-gray-800/10 to-gray-900 rounded-xl shadow-xl border border-gray-700/50">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg text-white font-bold flex items-center gap-2">
                                 <span className="w-1 h-6 bg-blue-500 rounded-full"></span>

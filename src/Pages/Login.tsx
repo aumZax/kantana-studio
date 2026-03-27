@@ -3,6 +3,7 @@ import axios from "axios";
 import ENDPOINTS from "../config";
 import { useNavigate } from "react-router-dom";
 import { Camera, Film, Lightbulb, Monitor, Settings, Sparkles, Theater } from "lucide-react";
+import AnimatedBackground from '../components/AnimatedBackground'; // ← imported background
 
 export default function Login() {
   const navigate = useNavigate();
@@ -150,30 +151,6 @@ export default function Login() {
         .film-fade.top    { top: 0;    background: linear-gradient(to bottom, #101012, transparent); }
         .film-fade.bottom { bottom: 0; background: linear-gradient(to top,   #101012, transparent); }
 
-        /* Grid background */
-        .grid-bg::before {
-          content: '';
-          position: fixed;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-          background-size: 44px 44px;
-          pointer-events: none;
-        }
-
-        /* Scanline */
-        .right-panel-inner::after {
-          content: '';
-          position: absolute;
-          left: 0; right: 0;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(56,189,248,0.05), transparent);
-          animation: scanline 6s linear infinite;
-          pointer-events: none;
-          z-index: 0;
-        }
-
         /* Pipeline connector */
         .pipe-conn {
           flex: 1;
@@ -263,8 +240,12 @@ export default function Login() {
         }
       `}</style>
 
+      {/* ─── BACKGROUND (imported, fixed position behind everything) ─── */}
+      <AnimatedBackground />
+
       {/* Root */}
-      <div className="login-root grid-bg min-h-screen flex items-center justify-center bg-[#0c0c0e] relative overflow-hidden">
+      <div  className="login-root min-h-screen flex items-center justify-center relative"
+        style={{ zIndex: 10 }}>
 
         {/* Card */}
         <div className="card-anim flex w-[780px] min-h-[480px] rounded-[4px] overflow-hidden border border-white/[0.07] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_40px_120px_rgba(0,0,0,0.95),0_0_60px_rgba(56,189,248,0.03)]">

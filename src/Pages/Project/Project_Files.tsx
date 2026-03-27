@@ -7,6 +7,7 @@ import Navbar_Project from "../../components/Navbar_Project";
 import axios from "axios";
 import ENDPOINTS from "../../config";
 import PixelLoadingSkeleton from '../../components/PixelLoadingSkeleton';
+import NetworkCanvas from '../../components/NetworkCanvas';
 
 // ── Native debounce hook ──────────────────────────
 function useDebounce<T>(value: T, delay: number): T {
@@ -298,11 +299,12 @@ export default function ProjectFiles() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #0d1117 0%, #0f1520 50%, #0d1117 100%)' }}>
+    <div className="h-screen flex flex-col" >
 
       {/* Navbar */}
       <div className="pt-14">
         <Navbar_Project activeTab="other" />
+        <NetworkCanvas />
       </div>
 
       {/* ── Toolbar ── */}
