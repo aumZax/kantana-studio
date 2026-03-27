@@ -22,8 +22,8 @@ const ENDPOINTS = {
   UPLOAD: `${BASE_URL}/upload`,
   GETPROJECTIMAGES: `${BASE_URL}/project/images`,
   DELETEPROJECT: `${BASE_URL}/deleteProject`,
-  // image_url: "http://100.84.110.127:3000/",
-   image_url: "https://galleries-audit-subject-skirts.trycloudflare.com/",
+  image_url: "http://100.84.110.127:3000/",
+  // image_url: "http://localhost:3000/",
 
   videos: `${BASE_URL}/videos`,
   IMAGE_URL: `${BASE_URL}/`,
