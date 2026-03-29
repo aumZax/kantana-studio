@@ -50,53 +50,14 @@ const STATUS_OPTS: SelectOption[] = [
     { label: 'ปิด', value: 'closed', color: '#6b7280' },
 ];
 
-const VIS_OPTS: SelectOption[] = [
-    { label: 'Client', value: 'Client', color: '#8b5cf6' },
-    { label: 'Internal', value: 'Internal', color: '#3b82f6' },
-];
+
 
 const READ_OPTS: SelectOption[] = [
     { label: 'อ่านแล้ว', value: 'read', color: '#0ea5e9' },
     { label: 'ยังไม่ได้อ่าน', value: 'unread', color: '#f59e0b' },
 ];
 
-const DatePickerContent = ({ value, onSave, onClose }: { value: string; onSave: (v: string) => void; onClose: () => void; }) => {
-    const toInputVal = (d: string) => {
-        if (!d) return '';
-        const dt = new Date(d);
-        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-    };
-    const [draft, setDraft] = useState(toInputVal(value));
-    const handleSave = () => { if (draft) { onSave(draft + 'T00:00:00.000Z'); onClose(); } };
-    const presets = [{ label: 'วันนี้', days: 0 }, { label: 'เมื่อวาน', days: -1 }, { label: '7 วันที่แล้ว', days: -7 }, { label: '30 วันที่แล้ว', days: -30 }];
-    const setPreset = (days: number) => {
-        const d = new Date(); d.setDate(d.getDate() + days);
-        setDraft(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-    };
-    return (
-        <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap gap-1.5">
-                {presets.map((p) => (
-                    <button key={p.label} onClick={() => setPreset(p.days)} className="px-2.5 py-1 rounded-md text-gray-400 text-xs transition-all border border-white/[0.06]" style={{ background: 'linear-gradient(to bottom right, #1f2937, #374151)' }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #2563eb, #3b82f6)'; (e.currentTarget as HTMLButtonElement).style.color = '#93c5fd'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(59,130,246,0.3)'; }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #1f2937, #374151)'; (e.currentTarget as HTMLButtonElement).style.color = ''; (e.currentTarget as HTMLButtonElement).style.borderColor = ''; }}>{p.label}</button>
-                ))}
-            </div>
-            <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
-                <input type="date" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }} className="w-full bg-[#0f1117] border border-white/[0.08] rounded-lg pl-9 pr-3 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all [color-scheme:dark]" />
-            </div>
-            {draft && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-br from-blue-600/20 to-blue-500/10 border border-blue-500/[0.12]">
-                    <Calendar className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-                    <span className="text-xs text-blue-300">{new Date(draft + 'T00:00:00').toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</span>
-                </div>
-            )}
-            <div className="flex gap-2">
-                <button onClick={handleSave} disabled={!draft} className="flex-1 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all" style={{ background: 'linear-gradient(to bottom right, #2563eb, #3b82f6)' }} onMouseEnter={e => { if (!(e.currentTarget as HTMLButtonElement).disabled) (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #3b82f6, #60a5fa)'; }} onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #2563eb, #3b82f6)'}>บันทึก</button>
-                <button onClick={onClose} className="px-4 py-2 rounded-lg text-gray-400 text-sm transition-all" style={{ background: 'linear-gradient(to bottom right, #374151, #4b5563)' }} onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #4b5563, #6b7280)'} onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(to bottom right, #374151, #4b5563)'}>ยกเลิก</button>
-            </div>
-        </div>
-    );
-};
+
 
 const FloatingPanel = ({ title, anchor, onClose, children, width = 280 }: {
     title: string;
@@ -225,7 +186,7 @@ const AssignedPeopleContent = ({ people, onSave, onClose }: { people: string[]; 
 
 interface BadgeStyle { textClass: string; bg: string; ring: string; }
 const statusBadge = (s: string): BadgeStyle => s === 'open' || s === 'opn' ? { textClass: 'text-emerald-300', bg: 'rgba(5,150,105,0.15)', ring: 'rgba(16,185,129,0.25)' } : { textClass: 'text-gray-500', bg: 'rgba(55,65,81,0.30)', ring: 'rgba(255,255,255,0.08)' };
-const visBadge = (v: string): BadgeStyle => v === 'Client' ? { textClass: 'text-violet-300', bg: 'rgba(109,40,217,0.18)', ring: 'rgba(139,92,246,0.25)' } : v === 'Internal' ? { textClass: 'text-blue-300', bg: 'rgba(37,99,235,0.18)', ring: 'rgba(59,130,246,0.25)' } : { textClass: 'text-gray-500', bg: 'rgba(55,65,81,0.30)', ring: 'rgba(255,255,255,0.08)' };
+
 const readBadge = (r: string): BadgeStyle => r === 'read' ? { textClass: 'text-sky-300', bg: 'rgba(2,132,199,0.18)', ring: 'rgba(14,165,233,0.25)' } : { textClass: 'text-amber-300', bg: 'rgba(180,83,9,0.18)', ring: 'rgba(245,158,11,0.20)' };
 const dotColor = (opts: SelectOption[], val: string): string => opts.find((o) => o.value === val || (o.value === 'open' && (val === 'opn' || val === 'open')))?.color ?? '#6b7280';
 const statusLabel = (s: string) => s === 'open' || s === 'opn' ? 'เปิด' : 'ปิด';
@@ -292,14 +253,7 @@ const NotesTab = ({ notes: initialNotes, loadingNotes, onContextMenu, onNoteClic
     const closePopup = () => setPopup({ noteId: null, field: null, anchor: null });
     const isOpen = (noteId: number, field: string) => popup.noteId === noteId && popup.field === field;
 
-    const openPct = () => {
-        if (!notes.length) return '0.00';
-        return ((notes.filter((n) => n.status === 'open' || n.status === 'opn').length / notes.length) * 100).toFixed(2);
-    };
-    const earliest = () => {
-        if (!notes.length) return '-';
-        return new Date(Math.min(...notes.map((n) => +new Date(n.created_at)))).toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    };
+
     const dateTH = (d: string) => d ? new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
 
     // pill ใช้ inline-flex — ขนาดพอดี content ไม่กินพื้นที่ td
