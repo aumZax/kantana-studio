@@ -856,17 +856,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
                                                                 {isUnread ? 'unread' : 'read'}
                                                             </span>
 
-                                                            {/* Visibility Badge */}
-                                                            <span className={`
-        inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ring-1
-        ${note.visibility === 'Client'
-                                                                    ? 'bg-violet-500/15 text-violet-300 ring-violet-500/30'
-                                                                    : 'bg-blue-500/15 text-blue-300 ring-blue-500/30'
-                                                                }
-    `}>
-                                                                <span className={`w-1.5 h-1.5 rounded-full ${note.visibility === 'Client' ? 'bg-violet-400' : 'bg-blue-400'}`} />
-                                                                {note.visibility}
-                                                            </span>
+                                                         
                                                         </div>
                                                     </div>
 

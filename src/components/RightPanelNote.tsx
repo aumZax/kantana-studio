@@ -600,17 +600,17 @@ const RightPanelNote: React.FC<RightPanelNoteProps> = ({
                             <button
                                 onClick={() => setDeleteConfirm(null)}
                                 disabled={isDeleting}
-                                className="px-4 py-2 rounded-lg text-zinc-200 text-sm font-medium bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50"
+                                className="px-4 py-2 rounded-lg text-zinc-200 transition-colors font-medium bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-700 hover:to-gray-600"
                             >
-                                ยกเลิก
+                                Cancel
                             </button>
                             <button
                                 onClick={() => handleDeleteReply(deleteConfirm.id)}
                                 disabled={isDeleting}
                                 className="px-4 py-2 rounded-lg text-white text-sm font-medium bg-red-700 hover:bg-red-600 disabled:opacity-50 flex items-center gap-2"
                             >
-                                {isDeleting && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                                {isDeleting ? 'กำลังลบ...' : 'ลบ'}
+                                {isDeleting && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin bg-gradient-to-r from-red-800 to-red-800 hover:from-red-700 hover:to-red-600 " />}
+                                {isDeleting ? 'กำลังลบ...' : 'Delete'}
                             </button>
                         </div>
                     </div>

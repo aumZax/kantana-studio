@@ -348,12 +348,11 @@ const NotesTab = ({ notes: initialNotes, loadingNotes, onContextMenu, onNoteClic
                             <th className="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">ผู้เขียน</th>
                             <th className="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 <div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /><span>วันที่สร้าง</span></div>
-                                <div className="mt-2 text-xs text-gray-500 normal-case flex items-center gap-2"><span>แรกสุด:</span><span className="text-gray-300 font-mono">{earliest()}</span></div>
+                                
                             </th>
-                            <th className="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">การมองเห็น</th>
                             <th className="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 <div>สถานะ</div>
-                                <div className="mt-2 text-xs text-gray-500 normal-case flex items-center gap-2"><span>เปิด:</span><span className="px-2 py-0.5 rounded-md bg-gradient-to-br from-emerald-600 to-emerald-500 text-emerald-100 font-semibold">{openPct()}%</span></div>
+                               
                             </th>
                             <th className="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 <div className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /><span>ผู้รับมอบหมาย</span></div>
@@ -457,30 +456,13 @@ const NotesTab = ({ notes: initialNotes, loadingNotes, onContextMenu, onNoteClic
 
                                 {/* Date — span inline พอดี content เท่านั้น */}
                                 <td className="px-4 py-4">
-                                    <span onClick={(e) => openPopup(e, note.id, 'created_at')} className="inline-flex items-center gap-2 text-sm cursor-pointer hover:opacity-75 transition-opacity">
+                                    <span className="inline-flex items-center gap-2 text-sm cursor-pointer hover:opacity-75 transition-opacity">
                                         <Calendar className="w-4 h-4 text-gray-500" />
                                         <span className="text-gray-300 font-mono">{dateTH(note.created_at)}</span>
                                     </span>
-                                    {isOpen(note.id, 'created_at') && popup.anchor && (
-                                        <FloatingPanel title="วันที่สร้าง" anchor={popup.anchor} onClose={closePopup} width={260}>
-                                            <DatePickerContent value={note.created_at} onSave={(v) => save(note.id, 'created_at', v)} onClose={closePopup} />
-                                        </FloatingPanel>
-                                    )}
+                                   
                                 </td>
 
-                                {/* Visibility */}
-                                <td className="px-4 py-4">
-                                    <span onClick={(e) => openPopup(e, note.id, 'visibility')} className="inline-flex">
-                                        {note.visibility
-                                            ? dotPill(VIS_OPTS, note.visibility, visBadge(note.visibility), note.visibility)
-                                            : <span className={`${pill} text-gray-600`} style={{ backgroundColor: 'rgba(55,65,81,0.20)', boxShadow: '0 0 0 1px rgba(255,255,255,0.04)' }}>ไม่ระบุ</span>}
-                                    </span>
-                                    {isOpen(note.id, 'visibility') && popup.anchor && (
-                                        <FloatingPanel title="การมองเห็น" anchor={popup.anchor} onClose={closePopup} width={240}>
-                                            <SelectList options={VIS_OPTS} value={note.visibility ?? ''} onSelect={(v) => save(note.id, 'visibility', v)} />
-                                        </FloatingPanel>
-                                    )}
-                                </td>
 
                                 {/* Status */}
                                 <td className="px-4 py-4">
