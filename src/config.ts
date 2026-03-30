@@ -1,5 +1,5 @@
 // endpoints.ts
-const BASE_URL = "https://further-algorithm-traveller-browser.trycloudflare.com";
+const BASE_URL = "http://100.84.110.127:3000";
 // const BASE_URL = "http://localhost:3000";
 
 // maxaaaaaa
@@ -22,7 +22,7 @@ const ENDPOINTS = {
   UPLOAD: `${BASE_URL}/upload`,
   GETPROJECTIMAGES: `${BASE_URL}/project/images`,
   DELETEPROJECT: `${BASE_URL}/deleteProject`,
-  image_url: "https://further-algorithm-traveller-browser.trycloudflare.com/",
+  image_url: "http://100.84.110.127:3000/",
   // image_url: "http://localhost:3000/",
 
   videos: `${BASE_URL}/videos`,
